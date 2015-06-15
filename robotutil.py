@@ -15,7 +15,7 @@ class santaFeSerial:
     WaitTimeout = 1
     portName = ""
 
-    def __init__(self, port, baud = 9600, timeout = 1):
+    def __init__(self, port, baud = 9600, timeout = 0.25):
         self.isOpened = False
         try:
             self.ser = serial.Serial(port, baudrate = baud, timeout = timeout)
@@ -28,11 +28,11 @@ class santaFeSerial:
         self.ser.close()
         
     def getSerOutput(self):
-        print "GSO: ", self.ser.inWaiting()
+        #print "GSO:"
         output = ''
         while True:
-            # read() blocks for the timeout set above *if* there is nothing to read
-            #   otherwise it returns immediately. 
+            # read() blocks for the timeout set below *if* there is nothing to read
+            #   otherwise it returns immediately
             byte = self.ser.read(1)
             if byte is None or byte == '':
                 break
@@ -44,9 +44,8 @@ class santaFeSerial:
 
     def waitForOK(self):
         #print "WFO:"
-        print "WFO: ", self.ser.inWaiting()
         output = ''
-        timeoutMax = self.WaitTimeout # / self.ser.timeout
+        timeoutMax = self.WaitTimeout / self.ser.timeout
         timeoutCount = 0
         while True:
             byte = self.ser.read(1)
@@ -60,38 +59,23 @@ class santaFeSerial:
             if byte == '\n':
                 break
         #print "WFO Output:", output
-        if ( output.startswith("ok") ) or ( output.startswith("OK") ):
-            return 0
-        else:
-            if ( output != "" ):
-                print "Unexpected serial output:", output.rstrip('\r\n'), "(", ':'.join(x.encode('hex') for x in output), ")"
-                return -1
-            else:
-                return 1
+        if ( not output.startswith("ok") ) and ( not output.startswith("OK") ):
+            print "Unexpected serial output:", output.rstrip('\r\n'), "(", ':'.join(x.encode('hex') for x in output), ")"
 
     # Send a command to the device via serial port
     # Asynchronous by default - doesn't wait for reply
     def sendCmd(self, cmd):
-        print "SC:", cmd
-        self.ser.flushInput()
+        #print "SC:", cmd
         self.ser.write(cmd)
-        self.ser.flush()
-        time.sleep(0.1)
-        self.ser.write("\r\n")
         self.ser.flush()
 
     # Send a command to the device via serial port
-    def sendSyncCmd(self, cmd, count = 0):
-        print "SSC:", cmd
+    def sendSyncCmd(self, cmd):
+        #print "SSC:", cmd
         self.ser.flushInput()
         self.ser.write(cmd)
         self.ser.flush()
         self.waitForOK()
-        #if ( self.waitForOK() > 0 ):
-        #    self.sendSyncCmd(cmd, count+1)
-        time.sleep(0.1)
-        self.ser.write("\r\n")
-        self.ser.flush()
 
     # Send a command and return the reply
     def sendCmdGetReply(self, cmd):
@@ -159,6 +143,11 @@ class santaFe:
                 self.synaptrons.close()
             return
 
+        # Temporary hack! Synaptrons don't like when you switch
+        # between the different addresses, so we open & close the port
+        # for each operation.
+        self.synaptrons.close()
+
         self.cam = cameraInit(camIndex)
         if self.cam == None:
             print "Camera init fail."
@@ -194,6 +183,8 @@ class santaFe:
         # disable motor, reset position and setpoint,
         # re-enable motor
         print "Homing Z axis", zNum
+        # TEMPORARY HACK
+        self.synaptrons = santaFeSerial(self.synaptronsPort)
         address = self.ZAddressBase+zNum
         cmd = "{0},39,-7000\r\n".format(address)
         self.synaptrons.sendSyncCmd(cmd)
@@ -204,6 +195,8 @@ class santaFe:
         self.synaptrons.sendSyncCmd("{0},05,0\r\n".format(address))
         self.synaptrons.sendSyncCmd("{0},39,0\r\n".format(address))
         self.synaptrons.sendSyncCmd("{0},03,6\r\n".format(address))
+        # TEMPORARY HACK
+        self.synaptrons.close()
         return
 
     def moveTo(self, pt):
@@ -214,15 +207,27 @@ class santaFe:
 
         time.sleep(0.5)
 
+        # TEMPORARY HACK
+        self.synaptrons = santaFeSerial(self.synaptronsPort)
         self.synaptrons.sendSyncCmd("54,39,{0}\r\n".format(int(pt[2]*self.ZCountsPerMM)))
+        # TEMPORARY HACK
+        self.synaptrons.close()
 
         time.sleep(0.5)
         
+        # TEMPORARY HACK
+        self.synaptrons = santaFeSerial(self.synaptronsPort)
         self.synaptrons.sendSyncCmd("55,39,{0}\r\n".format(int(pt[3]*self.ZCountsPerMM)))
+        # TEMPORARY HACK
+        self.synaptrons.close()
 
         time.sleep(0.5)
 
+        # TEMPORARY HACK
+        self.synaptrons = santaFeSerial(self.synaptronsPort)
         self.synaptrons.sendSyncCmd("56,39,{0}\r\n".format(int(pt[4]*self.ZCountsPerMM)))
+        # TEMPORARY HACK
+        self.synaptrons.close()
 
         time.sleep(0.5)
 
