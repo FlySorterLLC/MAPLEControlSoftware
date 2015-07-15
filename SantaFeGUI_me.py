@@ -7,7 +7,7 @@ import numpy as np
 import time
 import ConfigParser
 
-import robotutil
+import robotutil_me
 
 ## Some defaults & settings
 
@@ -37,7 +37,7 @@ def writeConfig(config):
 config = ConfigParser.RawConfigParser(configDefaults)
 readConfig(config)
 
-robot = robotutil.santaFe(CamIndex)
+robot = robotutil_me.santaFe(CamIndex)
 
 if robot.isInitialized == False:
     print "Initialization error."
@@ -51,7 +51,7 @@ key = -1
 # Move to lid
 robot.moveTo( ( 425., 125., 0, 0, 0 ) )
 robot.moveTo( ( 425., 125., 69.5, 0, 0) )
-"""# Pick lid
+# Pick lid
 robot.vacuum(True)
 time.sleep(1)
 robot.vacuum(False)
@@ -82,7 +82,7 @@ print "Done, waiting"
 
 #while True:
     #time.sleep(1)
-"""
+
 cv2.destroyAllWindows()
 robot.release()
-# writeConfig(config)
+writeConfig(config)

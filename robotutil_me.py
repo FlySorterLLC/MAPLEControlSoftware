@@ -15,7 +15,7 @@ class santaFeSerial:
     WaitTimeout = 1
     portName = ""
 
-    def __init__(self, port, baud = 9600, timeout = 0.25):
+    def __init__(self, port, baud = 9600, timeout = float(0.1)):
         self.isOpened = False
         try:
             self.ser = serial.Serial(port, baudrate = baud, timeout = timeout)
@@ -45,16 +45,21 @@ class santaFeSerial:
     def waitForOK(self):
         #print "WFO:"
         output = ''
+        #print self.WaitTimeout
+        #print self.ser.timeout
         timeoutMax = self.WaitTimeout / self.ser.timeout
+        #print timeoutMax
         timeoutCount = 0
         while True:
             byte = self.ser.read(1)
+
             if byte is None or byte == '':
-                timeoutCount += 1
+                 timeoutCount += 1
+                 time.sleep(1)
+                 print timeoutCount
             else:
-                self.dwell(1)
                 output += byte
-            if timeoutCount > timeoutMax:
+            if timeoutCount >= timeoutMax:
                 print 'Serial timeout.'
                 break
             if byte == '\n':
@@ -62,7 +67,6 @@ class santaFeSerial:
         #print "WFO Output:", output
         if ( not output.startswith("ok") ) and ( not output.startswith("OK") ):
             print "Unexpected serial output:", output.rstrip('\r\n'), "(", ':'.join(x.encode('hex') for x in output), ")"
-
     # Send a command to the device via serial port
     # Asynchronous by default - doesn't wait for reply
     def sendCmd(self, cmd):
@@ -235,8 +239,14 @@ class santaFe:
         return
 
     def dwell(self, t):
+        #print('timeToDwell')
         cmd = "G04 P{0}\n".format(t)
         self.printrboard.sendSyncCmd(cmd)
+        print "OK"
+        #print("TIME TO REALLY DWELL!")
+        #cmd2 = "G04 P{0}\n".format(5000)
+        #self.printrboard.sendSyncCmd(cmd2)
+        #print "OK"
         return
 
     def light(self, onOff = False):
