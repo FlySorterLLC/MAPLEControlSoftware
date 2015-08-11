@@ -52,7 +52,6 @@ class santaFeSerial:
             if byte is None or byte == '':
                 timeoutCount += 1
             else:
-                self.dwell(1)
                 output += byte
             if timeoutCount > timeoutMax:
                 print 'Serial timeout.'

@@ -45,9 +45,9 @@ class santaFeSerial:
     def waitForOK(self):
         #print "WFO:"
         output = ''
+        timeoutMax = self.WaitTimeout / self.ser.timeout
         #print self.WaitTimeout
         #print self.ser.timeout
-        timeoutMax = self.WaitTimeout / self.ser.timeout
         #print timeoutMax
         timeoutCount = 0
         while True:
@@ -97,7 +97,7 @@ class santaFe:
     """Class for fly manipulation robot."""
 
     # Constants
-
+    
     
     # There are 6 encoder counts per revolution, gear ratio of motor is 29.86:1,
     # leadscrew pitch is 1/10.4" and there are 25.4 mm/in
@@ -163,7 +163,7 @@ class santaFe:
         print "Homing..."
         self.home()
         self.dwell(1)
-        self.printrboard.sendSyncCmd("G01 F5000\n")
+        self.printrboard.sendSyncCmd("G01 F12000\n")
         
         self.isInitialized = True
         return
@@ -206,35 +206,47 @@ class santaFe:
 
     def moveTo(self, pt):
         self.currentPosition = pt
-        cmd = "G01 X{0[0]:.4} Y{0[1]:.4}\n".format(pt)
+        cmd = "G01 X{0[0]} Y{0[1]}\n".format(pt)
         self.printrboard.sendSyncCmd(cmd)
         self.dwell(1)
-
-        time.sleep(0.5)
+        
+        time.sleep(1)
 
         # TEMPORARY HACK
         self.synaptrons = santaFeSerial(self.synaptronsPort)
+        #print "action 1"
         self.synaptrons.sendSyncCmd("54,39,{0}\r\n".format(int(pt[2]*self.ZCountsPerMM)))
-        # TEMPORARY HACK
-        self.synaptrons.close()
+        #starting my function
+        
+        """if self.synaptrons.sendCmdGetReply("54,05,\r\n").startswith("54,{0}".format(int(pt[2]))):
+            self.synaptrons.close()"""
 
-        time.sleep(0.5)
+        # TEMPORARY HACK
+        #self.synaptrons.close()
+        #time.sleep(1)
         
         # TEMPORARY HACK
         self.synaptrons = santaFeSerial(self.synaptronsPort)
+        #print "action 2"
         self.synaptrons.sendSyncCmd("55,39,{0}\r\n".format(int(pt[3]*self.ZCountsPerMM)))
-        # TEMPORARY HACK
-        self.synaptrons.close()
 
-        time.sleep(0.5)
+        """if self.synaptrons.sendCmdGetReply("55,05,\r\n").startswith("55,{0}".format(int(pt[3]))):
+            self.synaptrons.close()"""
+            
+        # TEMPORARY HACK
+        #self.synaptrons.close()
+
+        #time.sleep(1)
 
         # TEMPORARY HACK
         self.synaptrons = santaFeSerial(self.synaptronsPort)
+        #print "action 3"
         self.synaptrons.sendSyncCmd("56,39,{0}\r\n".format(int(pt[4]*self.ZCountsPerMM)))
-        # TEMPORARY HACK
-        self.synaptrons.close()
 
-        time.sleep(0.5)
+        """if self.synaptrons.sendCmdGetReply("56,05,\r\n").startswith("56,{0}".format(int(pt[4]))):
+            self.synaptrons.close()"""
+        # TEMPORARY HACK
+        #self.synaptrons.close()
 
         return
 
@@ -242,7 +254,6 @@ class santaFe:
         #print('timeToDwell')
         cmd = "G04 P{0}\n".format(t)
         self.printrboard.sendSyncCmd(cmd)
-        print "OK"
         #print("TIME TO REALLY DWELL!")
         #cmd2 = "G04 P{0}\n".format(5000)
         #self.printrboard.sendSyncCmd(cmd2)
