@@ -143,11 +143,6 @@ class santaFe:
                 self.synaptrons.close()
             return
 
-        # Temporary hack! Synaptrons don't like when you switch
-        # between the different addresses, so we open & close the port
-        # for each operation.
-        self.synaptrons.close()
-
         self.cam = cameraInit(camIndex)
         if self.cam == None:
             print "Camera init fail."
@@ -183,8 +178,7 @@ class santaFe:
         # disable motor, reset position and setpoint,
         # re-enable motor
         print "Homing Z axis", zNum
-        # TEMPORARY HACK
-        self.synaptrons = santaFeSerial(self.synaptronsPort)
+
         address = self.ZAddressBase+zNum
         cmd = "{0},39,-7000\r\n".format(address)
         self.synaptrons.sendSyncCmd(cmd)
@@ -195,8 +189,7 @@ class santaFe:
         self.synaptrons.sendSyncCmd("{0},05,0\r\n".format(address))
         self.synaptrons.sendSyncCmd("{0},39,0\r\n".format(address))
         self.synaptrons.sendSyncCmd("{0},03,6\r\n".format(address))
-        # TEMPORARY HACK
-        self.synaptrons.close()
+
         return
 
     def moveTo(self, pt):
@@ -207,27 +200,15 @@ class santaFe:
 
         time.sleep(0.5)
 
-        # TEMPORARY HACK
-        self.synaptrons = santaFeSerial(self.synaptronsPort)
         self.synaptrons.sendSyncCmd("54,39,{0}\r\n".format(int(pt[2]*self.ZCountsPerMM)))
-        # TEMPORARY HACK
-        self.synaptrons.close()
 
         time.sleep(0.5)
         
-        # TEMPORARY HACK
-        self.synaptrons = santaFeSerial(self.synaptronsPort)
         self.synaptrons.sendSyncCmd("55,39,{0}\r\n".format(int(pt[3]*self.ZCountsPerMM)))
-        # TEMPORARY HACK
-        self.synaptrons.close()
 
         time.sleep(0.5)
 
-        # TEMPORARY HACK
-        self.synaptrons = santaFeSerial(self.synaptronsPort)
         self.synaptrons.sendSyncCmd("56,39,{0}\r\n".format(int(pt[4]*self.ZCountsPerMM)))
-        # TEMPORARY HACK
-        self.synaptrons.close()
 
         time.sleep(0.5)
 
