@@ -51,6 +51,7 @@ class santaFeSerial:
             byte = self.ser.read(1)
             if byte is None or byte == '':
                 timeoutCount += 1
+                time.sleep(1)
             else:
                 output += byte
             if timeoutCount > timeoutMax:
@@ -200,15 +201,20 @@ class santaFe:
 
         time.sleep(0.5)
 
-        self.synaptrons.sendSyncCmd("54,39,{0}\r\n".format(int(pt[2]*self.ZCountsPerMM)))
-
-        time.sleep(0.5)
+        """while self.synaptrons.sendCmdGetReply("54,05,\r\n").startswith("54,{0}".format(int(pt[2]))) == False:
+            self.synaptrons.sendSyncCmd("54,39,{0}\r\n".format(int(pt[2]*self.ZCountsPerMM)))"""
         
-        self.synaptrons.sendSyncCmd("55,39,{0}\r\n".format(int(pt[3]*self.ZCountsPerMM)))
+            
 
         time.sleep(0.5)
 
-        self.synaptrons.sendSyncCmd("56,39,{0}\r\n".format(int(pt[4]*self.ZCountsPerMM)))
+        """while self.synaptrons.sendCmdGetReply("55,05,\r\n").startswith("55,{0}".format(int(pt[3]))) == False:
+            self.synaptrons.sendSyncCmd("55,39,{0}\r\n".format(int(pt[3]*self.ZCountsPerMM)))"""
+
+        time.sleep(0.5)
+
+        """while self.synaptrons.sendCmdGetReply("56,05,\r\n").startswith("56,{0}".format(int(pt[4]))) == False:
+            self.synaptrons.sendSyncCmd("56,39,{0}\r\n".format(int(pt[4]*self.ZCountsPerMM)))"""
 
         time.sleep(0.5)
 
@@ -217,6 +223,7 @@ class santaFe:
     def dwell(self, t):
         cmd = "G04 P{0}\n".format(t)
         self.printrboard.sendSyncCmd(cmd)
+        print "OK"
         return
 
     def light(self, onOff = False):

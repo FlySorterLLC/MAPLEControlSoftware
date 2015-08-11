@@ -7,7 +7,7 @@ import numpy as np
 import time
 import ConfigParser
 
-import robotutil_me
+import robotutil
 
 ## Some defaults & settings
 
@@ -37,7 +37,7 @@ def writeConfig(config):
 config = ConfigParser.RawConfigParser(configDefaults)
 readConfig(config)
 
-robot = robotutil_me.santaFe(CamIndex)
+robot = robotutil.santaFe(CamIndex)
 
 if robot.isInitialized == False:
     print "Initialization error."
@@ -57,12 +57,12 @@ key = -1
 #Begin debugging of movement error
 # X and Y work, no need to test
 
-robot.moveTo( (0., 0., 60., 0., 0 ) )
-robot.moveTo( (0., 0., 60., 0., 80., ) )
+"""robot.moveTo( (0., 0., 60., 0., 0 ) )
+robot.moveTo( (0., 0., 60., 0., 80., ) )"""
 
 
 #starting mock procedure (intermediate movements can be combined)
-"""
+
 robot.moveTo( (500., 0., 0., 0., 0 ) )
 robot.vacuum(True)
 robot.moveTo( (500., 0., 0., 0., 80 ) )
@@ -102,7 +102,7 @@ time.sleep(1)
 robot.moveTo( (707., 55., 0., 0., 27 ) )
 time.sleep(1)
 robot.vacuum(False)
-"""
+
 # Pick lid
 #print "preparing to vacuum"
 #robot.vacuum(True)
