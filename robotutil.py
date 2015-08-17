@@ -2,6 +2,7 @@
 ##
 ## This software is licensed under the GPL v2.0
 
+import math
 import cv2
 import numpy as np
 import sys
@@ -15,7 +16,7 @@ class santaFeSerial:
     WaitTimeout = 1
     portName = ""
 
-    def __init__(self, port, baud = 9600, timeout = 0.25):
+    def __init__(self, port, baud = 9600, timeout = float(0.1)):
         self.isOpened = False
         try:
             self.ser = serial.Serial(port, baudrate = baud, timeout = timeout)
@@ -154,7 +155,7 @@ class santaFe:
         print "Homing..."
         self.home()
         self.dwell(1)
-        self.printrboard.sendSyncCmd("G01 F5000\n")
+        self.printrboard.sendSyncCmd("G01 F12000\n")
         
         self.isInitialized = True
         return
@@ -198,25 +199,55 @@ class santaFe:
         cmd = "G01 X{0[0]:.4} Y{0[1]:.4}\n".format(pt)
         self.printrboard.sendSyncCmd(cmd)
         self.dwell(1)
+        b = self.synaptrons.sendCmdGetReply("54,23,\r\n")
+        print b
+        print b[3]
+        """a = self.synaptrons.sendCmdGetReply("54,05,\r\n")
+        print int(a[3])
+        print iround(int(a[3])/73.33333) - int(pt[2])"""
 
-        time.sleep(0.5)
+        time.sleep(0.3)
 
-        """while self.synaptrons.sendCmdGetReply("54,05,\r\n").startswith("54,{0}".format(int(pt[2]))) == False:
-            self.synaptrons.sendSyncCmd("54,39,{0}\r\n".format(int(pt[2]*self.ZCountsPerMM)))"""
-        
+        for x in range (0,10):
+            self.synaptrons.sendSyncCmd("54,39,{0}\r\n".format(int(pt[2]*self.ZCountsPerMM)))
+            a = self.synaptrons.sendCmdGetReply("54,05,\r\n")
+            #if self.synaptrons.sendCmdGetReply("54,05,\r\n").startswith("54,{0}".format(iround(73.33333*int(pt[2]) + 1))):
+            z = a.split(',')
+            if abs(iround(int(z[1])/73.33333) - int(pt[2])) <= int(b[3]):
+                print "breaking"
+                break
+            time.sleep(0.3)
+            print z[1]
+            print a
+            print int(pt[2])
             
+        
+        #time.sleep(0.5)
 
-        time.sleep(0.5)
+        """for x in range (0,10):
+            self.synaptrons.sendSyncCmd("55,39,{0}\r\n".format(int(pt[3]*self.ZCountsPerMM)))
+            c = self.synaptrons.sendCmdGetReply("55,05,\r\n")
+            #if self.synaptrons.sendCmdGetReply("55,05,\r\n").startswith("55,{0}".format(iround(73.33333*int(pt[3])))):
+            if abs(iround(int(c[3])/73.33333) - int(pt[3]) == 0 or abs(iround(int(c[3])/73.33333) - int(pt[3]))) == int(b[3]):
+                print "breaking"
+                break
+            time.sleep(0.5)
+            print c
 
-        """while self.synaptrons.sendCmdGetReply("55,05,\r\n").startswith("55,{0}".format(int(pt[3]))) == False:
-            self.synaptrons.sendSyncCmd("55,39,{0}\r\n".format(int(pt[3]*self.ZCountsPerMM)))"""
+        time.sleep(0.5)"""
 
-        time.sleep(0.5)
+        for x in range (0,10):
+            self.synaptrons.sendSyncCmd("56,39,{0}\r\n".format(int(pt[4]*self.ZCountsPerMM)))
+            d = self.synaptrons.sendCmdGetReply("56,05,\r\n")
+            #if self.synaptrons.sendCmdGetReply("56,05,\r\n").startswith("56,{0}".format(iround(73.33333*int(pt[4])))):
+            y = d.split(',')
+            if abs(iround(int(y[1])/73.33333) - int(pt[4])) == int(b[3]):
+                print "breaking"
+                break
+            time.sleep(0.3)
+            print d
 
-        """while self.synaptrons.sendCmdGetReply("56,05,\r\n").startswith("56,{0}".format(int(pt[4]))) == False:
-            self.synaptrons.sendSyncCmd("56,39,{0}\r\n".format(int(pt[4]*self.ZCountsPerMM)))"""
-
-        time.sleep(0.5)
+        #time.sleep(0.5)
 
         return
 
@@ -323,4 +354,8 @@ def availablePorts():
         except (OSError, serial.SerialException):
             pass
     return result
+
+def iround(x):
+     y = round(x) - .5
+     return int(y) + (y > 0)
 

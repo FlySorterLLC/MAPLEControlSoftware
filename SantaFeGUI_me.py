@@ -2,6 +2,7 @@
 
 ## Copyright (c) 2015, FlySorter, LLC
 
+import math
 import cv2
 import numpy as np
 import time
@@ -59,6 +60,7 @@ key = -1
 
 """robot.moveTo( (0., 0., 60., 0., 0 ) )
 robot.moveTo( (0., 0., 60., 0., 80., ) )"""
+
 
 
 #starting mock procedure (intermediate movements can be combined)
