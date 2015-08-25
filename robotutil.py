@@ -155,7 +155,7 @@ class santaFe:
         print "Homing..."
         self.home()
         self.dwell(1)
-        self.printrboard.sendSyncCmd("G01 F12000\n")
+        self.printrboard.sendSyncCmd("G01 F13000\n")
         
         self.isInitialized = True
         return
@@ -200,31 +200,50 @@ class santaFe:
         self.printrboard.sendSyncCmd(cmd)
         self.dwell(1)
         b = self.synaptrons.sendCmdGetReply("54,23,\r\n")
-        print b
-        print b[3]
+        #print b
+        #print b[3]
         """a = self.synaptrons.sendCmdGetReply("54,05,\r\n")
         print int(a[3])
         print iround(int(a[3])/73.33333) - int(pt[2])"""
 
-        time.sleep(0.3)
 
-        for x in range (0,10):
+        for x in range (0,30):
             self.synaptrons.sendSyncCmd("54,39,{0}\r\n".format(int(pt[2]*self.ZCountsPerMM)))
             a = self.synaptrons.sendCmdGetReply("54,05,\r\n")
             #if self.synaptrons.sendCmdGetReply("54,05,\r\n").startswith("54,{0}".format(iround(73.33333*int(pt[2]) + 1))):
             z = a.split(',')
+            #print "hello world"
+            #print a
+            #print z
+            #print pt
+            #print b
             if abs(iround(int(z[1])/73.33333) - int(pt[2])) <= int(b[3]):
                 print "breaking"
                 break
-            time.sleep(0.3)
-            print z[1]
-            print a
-            print int(pt[2])
-            
+            #print z[1]
+            #print a
+            #print int(pt[2])
+            self.synaptrons.sendSyncCmd("55,39,{0}\r\n".format(int(pt[3]*self.ZCountsPerMM)))
+            c = self.synaptrons.sendCmdGetReply("55,05,\r\n")
+            #if self.synaptrons.sendCmdGetReply("55,05,\r\n").startswith("55,{0}".format(iround(73.33333*int(pt[3])))):
+            w = c.split(',')
+            if abs(iround(int(w[1])/73.33333) - int(pt[3])) <= int(b[3]):
+                print "breaking"
+                break
+            #print c
+            self.synaptrons.sendSyncCmd("56,39,{0}\r\n".format(int(pt[4]*self.ZCountsPerMM)))
+            d = self.synaptrons.sendCmdGetReply("56,05,\r\n")
+            #if self.synaptrons.sendCmdGetReply("56,05,\r\n").startswith("56,{0}".format(iround(73.33333*int(pt[4])))):
+            y = d.split(',')
+            if abs(iround(int(y[1])/73.33333) - int(pt[4])) <= int(b[3]):
+                print "breaking"
+                break
+            time.sleep(0.1)
+            #print d
         
-        #time.sleep(0.5)
+        #time.sleep(0.5)"""
 
-        """for x in range (0,10):
+        """for x in range (0,30):
             self.synaptrons.sendSyncCmd("55,39,{0}\r\n".format(int(pt[3]*self.ZCountsPerMM)))
             c = self.synaptrons.sendCmdGetReply("55,05,\r\n")
             #if self.synaptrons.sendCmdGetReply("55,05,\r\n").startswith("55,{0}".format(iround(73.33333*int(pt[3])))):
@@ -232,11 +251,11 @@ class santaFe:
                 print "breaking"
                 break
             time.sleep(0.5)
-            print c
+            #print c
 
-        time.sleep(0.5)"""
+        time.sleep(0.5)
 
-        for x in range (0,10):
+        for x in range (0,30):
             self.synaptrons.sendSyncCmd("56,39,{0}\r\n".format(int(pt[4]*self.ZCountsPerMM)))
             d = self.synaptrons.sendCmdGetReply("56,05,\r\n")
             #if self.synaptrons.sendCmdGetReply("56,05,\r\n").startswith("56,{0}".format(iround(73.33333*int(pt[4])))):
@@ -244,8 +263,8 @@ class santaFe:
             if abs(iround(int(y[1])/73.33333) - int(pt[4])) == int(b[3]):
                 print "breaking"
                 break
-            time.sleep(0.3)
-            print d
+            time.sleep(0.1)
+            #print d"""
 
         #time.sleep(0.5)
 

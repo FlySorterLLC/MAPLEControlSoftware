@@ -51,6 +51,7 @@ else:
 key = -1
 
 # Move to lid
+robot.moveTo( ( 150., 200., 50, 50, 50. ) )
 #robot.moveTo( ( 25., 25., 0., 0, 0. ) )
 #robot.moveTo( ( 425., 125., 0., 0, 0.) )
 #robot.moveTo( ( 425., 125., 69.5, 0, 0) )
@@ -58,52 +59,55 @@ key = -1
 #Begin debugging of movement error
 # X and Y work, no need to test
 
-"""robot.moveTo( (0., 0., 60., 0., 0 ) )
-robot.moveTo( (0., 0., 60., 0., 80., ) )"""
+#robot.moveTo( (100., 100., 60., 0., 60 ) )
+#robot.moveTo( (100., 100., 5., 0., 5 ) )
+#robot.moveTo( (10., 10., 5., 0., 5 ) )
+#robot.moveTo( (0., 0., 60., 0., 80., ) )
 
 
 
 #starting mock procedure (intermediate movements can be combined)
 
-robot.moveTo( (500., 0., 0., 0., 0 ) )
+"""robot.moveTo( (500., 0., 0., 0., 75 ) )
 robot.vacuum(True)
 robot.moveTo( (500., 0., 0., 0., 80 ) )
-time.sleep(1)
+#time.sleep(1)
 robot.moveTo( (500., 0., 0., 0., 0 ) )
-time.sleep(1)
-robot.moveTo( (586., 0., 0., 0., 0 ) )
-time.sleep(1)
-robot.moveTo( (586., 55., 0., 0., 0 ) )
-time.sleep(1)
+#time.sleep(1)
+#robot.moveTo( (586., 0., 0., 0., 0 ) )
+#time.sleep(1)
+robot.moveTo( (586., 55., 42., 0., 0 ) )
+#time.sleep(1)
 robot.moveTo( (586., 55., 47., 0., 0 ) ) #Z1 higher up that Z3!
-time.sleep(1)
-robot.moveTo( (586., 55., 0., 0., 0 ) )
-time.sleep(1)
-robot.moveTo( (666., 55., 0., 0., 0 ) )
-time.sleep(1)
-robot.moveTo( (666., 55., 0., 0., 27 ) )
-time.sleep(1)
+#time.sleep(1)
+robot.moveTo( (586., 55., 42., 0., 0 ) )
+#time.sleep(1)
+robot.moveTo( (666., 55., 42., 0., 22 ) )
+#time.sleep(1)
+robot.moveTo( (666., 55., 42., 0., 27 ) )
+#time.sleep(1)
 robot.vacuum(False)
-robot.moveTo( (666., 55., 0., 0., 0 ) )
-time.sleep(1)
-robot.moveTo( (540., 55., 0., 0., 0 ) )
-time.sleep(1)
+robot.moveTo( (666., 55., 42., 0., 22 ) )
+#time.sleep(1)
+robot.moveTo( (540., 55., 42., 0., 22 ) )
+#time.sleep(1)
 robot.vacuum(True)
-robot.moveTo( (540., 55., 0., 0., 84 ) )
-time.sleep(1)
-robot.moveTo( (540., 55., 0., 0., 0 ) )
-time.sleep(1)
-robot.moveTo( (622., 55., 0., 0., 0 ) )
-time.sleep(1)
-robot.moveTo( (622., 55., 47., 0., 0 ) )
-time.sleep(1)
-robot.moveTo( (622., 55., 0., 0., 0 ) )
-time.sleep(1)
-robot.moveTo( (707., 55., 0., 0., 0 ) )
-time.sleep(1)
-robot.moveTo( (707., 55., 0., 0., 27 ) )
-time.sleep(1)
-robot.vacuum(False)
+robot.moveTo( (540., 55., 42., 0., 84 ) )
+#time.sleep(1)
+robot.moveTo( (540., 55., 42., 0., 22 ) )
+#time.sleep(1)
+robot.moveTo( (622., 55., 42., 0., 22 ) )
+#time.sleep(1)
+robot.moveTo( (622., 55., 47., 0., 22 ) )
+#time.sleep(1)
+robot.moveTo( (622., 55., 42., 0., 22 ) )
+#time.sleep(1)
+robot.moveTo( (707., 55., 42., 0., 22 ) )
+#time.sleep(1)
+robot.moveTo( (707., 55., 42., 0., 27 ) )
+#time.sleep(1)
+robot.vacuum(False)"""
+
 
 # Pick lid
 #print "preparing to vacuum"
