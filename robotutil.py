@@ -22,9 +22,17 @@ import time
 # are connected together on an RS232 serial bus, which is connected to
 # the computer by a USB-to-Serial converter.
 #
+# 1. Printrboard - controls X, Y, and rotation for Z0 and Z2
+# 2. Motor control board (3x Synaptron boards + USB-to-serial converter) - up & down on Z0, Z1 and Z2
+#
 # So this class will be instantiated twice (at least) -- once for the
 # printrboard, and once for the Z axis controllers (one serial port for
 # all three controllers).
+#
+# Documentation is available online for G-codes (printrboard) and the Synaptron controller:
+#
+# http://reprap.org/wiki/G-code
+# http://solutions-cubed.com/app-notes-downloads/#SYNAPU
 #
 class santaFeSerial:
     """Serial class for generic serial device."""
@@ -214,10 +222,23 @@ class santaFe:
         return
 
     def moveTo(self, pt):
+        # This code needs to be changed. Basically, we should be sending commands to
+        # the controllers to move, then waiting to make sure they have completed the move.
+        #
+        # The printrboard has a built-in function to do this, by way of the G04 (dwell)
+        # command.
+        #
+        # The Synaptrons do not quite have that built-in, but they do have a status register
+        # and the status register has a flag that is raised when the position is within
+        # the error limit for that axis. So we could poll to see when that axis has reached
+        # its target position.
+        #
         self.currentPosition = pt
         cmd = "G01 X{0[0]:.4} Y{0[1]:.4}\n".format(pt)
-        self.printrboard.sendSyncCmd(cmd)
-        self.dwell(1)
+        self.printrboard.sendSyncCmd(cmd) # Send command to move
+        self.dwell(1) # Wait for move to finish
+
+
         b = self.synaptrons.sendCmdGetReply("54,23,\r\n")
         #print b
         #print b[3]
@@ -225,23 +246,14 @@ class santaFe:
         print int(a[3])
         print iround(int(a[3])/73.33333) - int(pt[2])"""
 
-
+        # *This is the code that needs to change*
         for x in range (0,30):
             self.synaptrons.sendSyncCmd("54,39,{0}\r\n".format(int(pt[2]*self.ZCountsPerMM)))
             a = self.synaptrons.sendCmdGetReply("54,05,\r\n")
             #if self.synaptrons.sendCmdGetReply("54,05,\r\n").startswith("54,{0}".format(iround(73.33333*int(pt[2]) + 1))):
-            z = a.split(',')
-            #print "hello world"
-            #print a
-            #print z
-            #print pt
-            #print b
             if abs(iround(int(z[1])/73.33333) - int(pt[2])) <= int(b[3]):
                 print "breaking"
                 break
-            #print z[1]
-            #print a
-            #print int(pt[2])
             self.synaptrons.sendSyncCmd("55,39,{0}\r\n".format(int(pt[3]*self.ZCountsPerMM)))
             c = self.synaptrons.sendCmdGetReply("55,05,\r\n")
             #if self.synaptrons.sendCmdGetReply("55,05,\r\n").startswith("55,{0}".format(iround(73.33333*int(pt[3])))):
@@ -249,7 +261,6 @@ class santaFe:
             if abs(iround(int(w[1])/73.33333) - int(pt[3])) <= int(b[3]):
                 print "breaking"
                 break
-            #print c
             self.synaptrons.sendSyncCmd("56,39,{0}\r\n".format(int(pt[4]*self.ZCountsPerMM)))
             d = self.synaptrons.sendCmdGetReply("56,05,\r\n")
             #if self.synaptrons.sendCmdGetReply("56,05,\r\n").startswith("56,{0}".format(iround(73.33333*int(pt[4])))):
@@ -258,34 +269,7 @@ class santaFe:
                 print "breaking"
                 break
             time.sleep(0.1)
-            #print d
         
-        #time.sleep(0.5)"""
-
-        """for x in range (0,30):
-            self.synaptrons.sendSyncCmd("55,39,{0}\r\n".format(int(pt[3]*self.ZCountsPerMM)))
-            c = self.synaptrons.sendCmdGetReply("55,05,\r\n")
-            #if self.synaptrons.sendCmdGetReply("55,05,\r\n").startswith("55,{0}".format(iround(73.33333*int(pt[3])))):
-            if abs(iround(int(c[3])/73.33333) - int(pt[3]) == 0 or abs(iround(int(c[3])/73.33333) - int(pt[3]))) == int(b[3]):
-                print "breaking"
-                break
-            time.sleep(0.5)
-            #print c
-
-        time.sleep(0.5)
-
-        for x in range (0,30):
-            self.synaptrons.sendSyncCmd("56,39,{0}\r\n".format(int(pt[4]*self.ZCountsPerMM)))
-            d = self.synaptrons.sendCmdGetReply("56,05,\r\n")
-            #if self.synaptrons.sendCmdGetReply("56,05,\r\n").startswith("56,{0}".format(iround(73.33333*int(pt[4])))):
-            y = d.split(',')
-            if abs(iround(int(y[1])/73.33333) - int(pt[4])) == int(b[3]):
-                print "breaking"
-                break
-            time.sleep(0.1)
-            #print d"""
-
-        #time.sleep(0.5)
 
         return
 
