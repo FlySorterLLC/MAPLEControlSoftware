@@ -1,6 +1,11 @@
 ## Copyright (c) 2015, FlySorter LLC
 ##
 ## This software is licensed under the GPL v2.0
+#
+#  File: robotutil.py
+#  Description: Contains classes and functions used to control
+#     the FlySorter automated experiment platform (project name Santa Fe).
+#
 
 import math
 import cv2
@@ -10,8 +15,19 @@ import glob
 import serial
 import time
 
+# Serial communications class that is used for multiple devices.
+# In Santa Fe, the printrboard and the Z axis motor controllers
+# are each serial devices. The printrboard is connected directly
+# via USB, and the Z axis controllers (Synaptron boards from Solutions Cubed)
+# are connected together on an RS232 serial bus, which is connected to
+# the computer by a USB-to-Serial converter.
+#
+# So this class will be instantiated twice (at least) -- once for the
+# printrboard, and once for the Z axis controllers (one serial port for
+# all three controllers).
+#
 class santaFeSerial:
-    """Serial class for robot device."""
+    """Serial class for generic serial device."""
     
     WaitTimeout = 1
     portName = ""
@@ -28,11 +44,12 @@ class santaFeSerial:
     def close(self):
         self.ser.close()
         
+    # Retrieve any waiting data on the port
     def getSerOutput(self):
         #print "GSO:"
         output = ''
         while True:
-            # read() blocks for the timeout set below *if* there is nothing to read
+            # read() blocks for the timeout set above *if* there is nothing to read
             #   otherwise it returns immediately
             byte = self.ser.read(1)
             if byte is None or byte == '':
@@ -43,6 +60,8 @@ class santaFeSerial:
         #print "GSO Output:", output
         return output
 
+    # Block and wait for the device to reply with "ok" or "OK"
+    # Times out after self.WaitTimeout (set above)
     def waitForOK(self):
         #print "WFO:"
         output = ''
@@ -72,6 +91,7 @@ class santaFeSerial:
         self.ser.flush()
 
     # Send a command to the device via serial port
+    # Waits to receive reply of "ok" or "OK" via waitForOK()
     def sendSyncCmd(self, cmd):
         #print "SSC:", cmd
         self.ser.flushInput()
@@ -79,26 +99,23 @@ class santaFeSerial:
         self.ser.flush()
         self.waitForOK()
 
-    # Send a command and return the reply
+    # Send a command and retrieve the reply
     def sendCmdGetReply(self, cmd):
         self.ser.flushInput()
         self.ser.write(cmd)
         self.ser.flush()
         return self.getSerOutput()
 
-    def sendFile(self, filename):
-        return 1
-
 
 class santaFe:
     """Class for fly manipulation robot."""
 
     # Constants
-
     
     # There are 6 encoder counts per revolution, gear ratio of motor is 29.86:1,
     # leadscrew pitch is 1/10.4" and there are 25.4 mm/in
     ZCountsPerMM = 6.0*29.86*10.4/25.4 # = 79.36
+    # Maybe this should be in a config file??
     ZAddressBase = 54
 
     printrboardPort = ""
@@ -106,6 +123,7 @@ class santaFe:
 
     imageCenter = np.float32( [2592.0/2.0, 1944.0/2.0 ])
 
+    # These variables should be kept up-to-date
     currentPosition = np.array([0.0, 0.0, 0.0, 0.0, 0.0])
     currentRotation = np.array([0.0, 0.0])
 
@@ -170,6 +188,7 @@ class santaFe:
         self.homeZAxis(0)
         self.homeZAxis(1)
         self.homeZAxis(2)
+        # Then home Y, then X (in that order, b/c of CoreXY configuration)
         self.printrboard.sendSyncCmd("G28 Y\n")
         self.printrboard.sendSyncCmd("G28 X\n")
         return
@@ -353,14 +372,11 @@ def availablePorts():
 
     if sys.platform.startswith('win'):
         ports = ['COM' + str(i + 1) for i in range(256)]
-
     elif sys.platform.startswith('linux') or sys.platform.startswith('cygwin'):
         # this is to exclude your current terminal "/dev/tty"
         ports = glob.glob('/dev/tty[A-Za-z]*')
-
     elif sys.platform.startswith('darwin'):
         ports = glob.glob('/dev/tty.*')
-
     else:
         raise EnvironmentError('Unsupported platform')
 
