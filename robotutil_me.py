@@ -1,13 +1,7 @@
 ## Copyright (c) 2015, FlySorter LLC
 ##
 ## This software is licensed under the GPL v2.0
-#
-#  File: robotutil.py
-#  Description: Contains classes and functions used to control
-#     the FlySorter automated experiment platform (project name Santa Fe).
-#
 
-import math
 import cv2
 import numpy as np
 import sys
@@ -15,27 +9,8 @@ import glob
 import serial
 import time
 
-# Serial communications class that is used for multiple devices.
-# In Santa Fe, the printrboard and the Z axis motor controllers
-# are each serial devices. The printrboard is connected directly
-# via USB, and the Z axis controllers (Synaptron boards from Solutions Cubed)
-# are connected together on an RS232 serial bus, which is connected to
-# the computer by a USB-to-Serial converter.
-#
-# 1. Printrboard - controls X, Y, and rotation for Z0 and Z2
-# 2. Motor control board (3x Synaptron boards + USB-to-serial converter) - up & down on Z0, Z1 and Z2
-#
-# So this class will be instantiated twice (at least) -- once for the
-# printrboard, and once for the Z axis controllers (one serial port for
-# all three controllers).
-#
-# Documentation is available online for G-codes (printrboard) and the Synaptron controller:
-#
-# http://reprap.org/wiki/G-code
-# http://solutions-cubed.com/app-notes-downloads/#SYNAPU
-#
 class santaFeSerial:
-    """Serial class for generic serial device."""
+    """Serial class for robot device."""
     
     WaitTimeout = 1
     portName = ""
@@ -52,12 +27,11 @@ class santaFeSerial:
     def close(self):
         self.ser.close()
         
-    # Retrieve any waiting data on the port
     def getSerOutput(self):
         #print "GSO:"
         output = ''
         while True:
-            # read() blocks for the timeout set above *if* there is nothing to read
+            # read() blocks for the timeout set below *if* there is nothing to read
             #   otherwise it returns immediately
             byte = self.ser.read(1)
             if byte is None or byte == '':
@@ -68,21 +42,24 @@ class santaFeSerial:
         #print "GSO Output:", output
         return output
 
-    # Block and wait for the device to reply with "ok" or "OK"
-    # Times out after self.WaitTimeout (set above)
     def waitForOK(self):
         #print "WFO:"
         output = ''
         timeoutMax = self.WaitTimeout / self.ser.timeout
+        #print self.WaitTimeout
+        #print self.ser.timeout
+        #print timeoutMax
         timeoutCount = 0
         while True:
             byte = self.ser.read(1)
+
             if byte is None or byte == '':
-                timeoutCount += 1
-                time.sleep(1)
+                 timeoutCount += 1
+                 time.sleep(1)
+                 print timeoutCount
             else:
                 output += byte
-            if timeoutCount > timeoutMax:
+            if timeoutCount >= timeoutMax:
                 print 'Serial timeout.'
                 break
             if byte == '\n':
@@ -90,7 +67,6 @@ class santaFeSerial:
         #print "WFO Output:", output
         if ( not output.startswith("ok") ) and ( not output.startswith("OK") ):
             print "Unexpected serial output:", output.rstrip('\r\n'), "(", ':'.join(x.encode('hex') for x in output), ")"
-
     # Send a command to the device via serial port
     # Asynchronous by default - doesn't wait for reply
     def sendCmd(self, cmd):
@@ -99,7 +75,6 @@ class santaFeSerial:
         self.ser.flush()
 
     # Send a command to the device via serial port
-    # Waits to receive reply of "ok" or "OK" via waitForOK()
     def sendSyncCmd(self, cmd):
         #print "SSC:", cmd
         self.ser.flushInput()
@@ -107,12 +82,15 @@ class santaFeSerial:
         self.ser.flush()
         self.waitForOK()
 
-    # Send a command and retrieve the reply
+    # Send a command and return the reply
     def sendCmdGetReply(self, cmd):
         self.ser.flushInput()
         self.ser.write(cmd)
         self.ser.flush()
         return self.getSerOutput()
+
+    def sendFile(self, filename):
+        return 1
 
 
 class santaFe:
@@ -120,10 +98,10 @@ class santaFe:
 
     # Constants
     
+    
     # There are 6 encoder counts per revolution, gear ratio of motor is 29.86:1,
     # leadscrew pitch is 1/10.4" and there are 25.4 mm/in
     ZCountsPerMM = 6.0*29.86*10.4/25.4 # = 79.36
-    # Maybe this should be in a config file??
     ZAddressBase = 54
 
     printrboardPort = ""
@@ -131,7 +109,6 @@ class santaFe:
 
     imageCenter = np.float32( [2592.0/2.0, 1944.0/2.0 ])
 
-    # These variables should be kept up-to-date
     currentPosition = np.array([0.0, 0.0, 0.0, 0.0, 0.0])
     currentRotation = np.array([0.0, 0.0])
 
@@ -171,6 +148,11 @@ class santaFe:
                 self.synaptrons.close()
             return
 
+        # Temporary hack! Synaptrons don't like when you switch
+        # between the different addresses, so we open & close the port
+        # for each operation.
+        self.synaptrons.close()
+
         self.cam = cameraInit(camIndex)
         if self.cam == None:
             print "Camera init fail."
@@ -181,7 +163,7 @@ class santaFe:
         print "Homing..."
         self.home()
         self.dwell(1)
-        self.printrboard.sendSyncCmd("G01 F13000\n")
+        self.printrboard.sendSyncCmd("G01 F12000\n")
         
         self.isInitialized = True
         return
@@ -196,7 +178,6 @@ class santaFe:
         self.homeZAxis(0)
         self.homeZAxis(1)
         self.homeZAxis(2)
-        # Then home Y, then X (in that order, b/c of CoreXY configuration)
         self.printrboard.sendSyncCmd("G28 Y\n")
         self.printrboard.sendSyncCmd("G28 X\n")
         return
@@ -207,7 +188,8 @@ class santaFe:
         # disable motor, reset position and setpoint,
         # re-enable motor
         print "Homing Z axis", zNum
-
+        # TEMPORARY HACK
+        self.synaptrons = santaFeSerial(self.synaptronsPort)
         address = self.ZAddressBase+zNum
         cmd = "{0},39,-7000\r\n".format(address)
         self.synaptrons.sendSyncCmd(cmd)
@@ -218,65 +200,64 @@ class santaFe:
         self.synaptrons.sendSyncCmd("{0},05,0\r\n".format(address))
         self.synaptrons.sendSyncCmd("{0},39,0\r\n".format(address))
         self.synaptrons.sendSyncCmd("{0},03,6\r\n".format(address))
-
+        # TEMPORARY HACK
+        self.synaptrons.close()
         return
 
     def moveTo(self, pt):
-        # This code needs to be changed. Basically, we should be sending commands to
-        # the controllers to move, then waiting to make sure they have completed the move.
-        #
-        # The printrboard has a built-in function to do this, by way of the G04 (dwell)
-        # command.
-        #
-        # The Synaptrons do not quite have that built-in, but they do have a status register
-        # and the status register has a flag that is raised when the position is within
-        # the error limit for that axis. So we could poll to see when that axis has reached
-        # its target position.
-        #
         self.currentPosition = pt
-        cmd = "G01 X{0[0]:.4} Y{0[1]:.4}\n".format(pt)
-        self.printrboard.sendSyncCmd(cmd) # Send command to move
-        self.dwell(1) # Wait for move to finish
-
-
-        b = self.synaptrons.sendCmdGetReply("54,23,\r\n")
-        #print b
-        #print b[3]
-        """a = self.synaptrons.sendCmdGetReply("54,05,\r\n")
-        print int(a[3])
-        print iround(int(a[3])/73.33333) - int(pt[2])"""
-
-        # *This is the code that needs to change*
-        for x in range (0,30):
-            self.synaptrons.sendSyncCmd("54,39,{0}\r\n".format(int(pt[2]*self.ZCountsPerMM)))
-            a = self.synaptrons.sendCmdGetReply("54,05,\r\n")
-            #if self.synaptrons.sendCmdGetReply("54,05,\r\n").startswith("54,{0}".format(iround(73.33333*int(pt[2]) + 1))):
-            if abs(iround(int(z[1])/73.33333) - int(pt[2])) <= int(b[3]):
-                print "breaking"
-                break
-            self.synaptrons.sendSyncCmd("55,39,{0}\r\n".format(int(pt[3]*self.ZCountsPerMM)))
-            c = self.synaptrons.sendCmdGetReply("55,05,\r\n")
-            #if self.synaptrons.sendCmdGetReply("55,05,\r\n").startswith("55,{0}".format(iround(73.33333*int(pt[3])))):
-            w = c.split(',')
-            if abs(iround(int(w[1])/73.33333) - int(pt[3])) <= int(b[3]):
-                print "breaking"
-                break
-            self.synaptrons.sendSyncCmd("56,39,{0}\r\n".format(int(pt[4]*self.ZCountsPerMM)))
-            d = self.synaptrons.sendCmdGetReply("56,05,\r\n")
-            #if self.synaptrons.sendCmdGetReply("56,05,\r\n").startswith("56,{0}".format(iround(73.33333*int(pt[4])))):
-            y = d.split(',')
-            if abs(iround(int(y[1])/73.33333) - int(pt[4])) <= int(b[3]):
-                print "breaking"
-                break
-            time.sleep(0.1)
+        cmd = "G01 X{0[0]} Y{0[1]}\n".format(pt)
+        self.printrboard.sendSyncCmd(cmd)
+        self.dwell(1)
         
+        time.sleep(1)
+
+        # TEMPORARY HACK
+        self.synaptrons = santaFeSerial(self.synaptronsPort)
+        #print "action 1"
+        self.synaptrons.sendSyncCmd("54,39,{0}\r\n".format(int(pt[2]*self.ZCountsPerMM)))
+        #starting my function
+        
+        """if self.synaptrons.sendCmdGetReply("54,05,\r\n").startswith("54,{0}".format(int(pt[2]))):
+            self.synaptrons.close()"""
+
+        # TEMPORARY HACK
+        #self.synaptrons.close()
+        #time.sleep(1)
+        
+        # TEMPORARY HACK
+        self.synaptrons = santaFeSerial(self.synaptronsPort)
+        #print "action 2"
+        self.synaptrons.sendSyncCmd("55,39,{0}\r\n".format(int(pt[3]*self.ZCountsPerMM)))
+
+        """if self.synaptrons.sendCmdGetReply("55,05,\r\n").startswith("55,{0}".format(int(pt[3]))):
+            self.synaptrons.close()"""
+            
+        # TEMPORARY HACK
+        #self.synaptrons.close()
+
+        #time.sleep(1)
+
+        # TEMPORARY HACK
+        self.synaptrons = santaFeSerial(self.synaptronsPort)
+        #print "action 3"
+        self.synaptrons.sendSyncCmd("56,39,{0}\r\n".format(int(pt[4]*self.ZCountsPerMM)))
+
+        """if self.synaptrons.sendCmdGetReply("56,05,\r\n").startswith("56,{0}".format(int(pt[4]))):
+            self.synaptrons.close()"""
+        # TEMPORARY HACK
+        #self.synaptrons.close()
 
         return
 
     def dwell(self, t):
+        #print('timeToDwell')
         cmd = "G04 P{0}\n".format(t)
         self.printrboard.sendSyncCmd(cmd)
-        print "OK"
+        #print("TIME TO REALLY DWELL!")
+        #cmd2 = "G04 P{0}\n".format(5000)
+        #self.printrboard.sendSyncCmd(cmd2)
+        #print "OK"
         return
 
     def light(self, onOff = False):
@@ -356,11 +337,14 @@ def availablePorts():
 
     if sys.platform.startswith('win'):
         ports = ['COM' + str(i + 1) for i in range(256)]
+
     elif sys.platform.startswith('linux') or sys.platform.startswith('cygwin'):
         # this is to exclude your current terminal "/dev/tty"
         ports = glob.glob('/dev/tty[A-Za-z]*')
+
     elif sys.platform.startswith('darwin'):
         ports = glob.glob('/dev/tty.*')
+
     else:
         raise EnvironmentError('Unsupported platform')
 
@@ -373,8 +357,4 @@ def availablePorts():
         except (OSError, serial.SerialException):
             pass
     return result
-
-def iround(x):
-     y = round(x) - .5
-     return int(y) + (y > 0)
 

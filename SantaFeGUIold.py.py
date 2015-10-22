@@ -14,7 +14,6 @@ import robotutil
 # Configuration defaults
 configDefaults = {'CamIndex': '0',
                   'OutputDir': 'C:/Users/DaveZ/Documents/Training Data',
-                  # Add in ZAxisBaseAddress to config file...
                   }
 
 # Read in the config, and assign values to the appropriate vars
@@ -23,15 +22,21 @@ def readConfig(config):
     config.read('SantaFe.cfg')
     CamIndex = config.getint('DEFAULT', 'CamIndex')
     OutputDir = config.get('DEFAULT', 'OutputDir')
-    # Add in ZAxisBaseAddress to config file...
     
+# Write out the config file after transferring values from vars
+def writeConfig(config):
+    global FieldCamIndex, CloseCamIndex
+    config.set('DEFAULT', 'CamIndex', CamIndex)
+    config.set('DEFAULT', 'OutputDir', OutputDir)
+    with open('FlySorter.cfg', 'wb') as configfile:
+        config.write(configfile)
+
 #### BEGIN PGM ####
 
 # Open and read in configuration file
 config = ConfigParser.RawConfigParser(configDefaults)
 readConfig(config)
 
-# And pass in the ZAxisBaseAddress here
 robot = robotutil.santaFe(CamIndex)
 
 if robot.isInitialized == False:
