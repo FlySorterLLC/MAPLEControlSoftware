@@ -9,7 +9,7 @@ import numpy as np
 import time
 import ConfigParser
 
-import ben_robotutil
+import robotutil
 
 
 ## Some defaults & settings
