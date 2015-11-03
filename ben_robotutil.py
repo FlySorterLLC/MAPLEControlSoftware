@@ -169,6 +169,11 @@ class santaFe:
         return
 
     def release(self):
+        self.light(False)
+        self.flyManipVenturi(False)
+        self.smallPartManipVenturi(False)
+        self.flyManipAir(False)
+        self.smallPartManipAir(False) 
         self.cam.release()
         self.printrboard.close()
         self.synaptrons.close()
@@ -238,8 +243,7 @@ class santaFe:
                 zTemp = int(zTemp.split(',')[1])/self.ZCountsPerMM
                 zBoolArray[2+i] = int(abs(zTemp - pt[2+i]) < zErrorBand)
                 #print 'i is: ', i,' zstring is: ', zTemp, ' zBoolArray is: ', zBoolArray
-                
- #       self.synaptrons.close()
+  
         print 'Moved to coordinates ', pt
         return
 
@@ -334,23 +338,7 @@ class santaFe:
         self.printrboard.sendCmd(cmd)
         return
 
-    def vacuum(self, onOff = False):
-        if (onOff == True):
-            cmd = "M42 P12 S255\n"
-        else:
-            cmd = "M42 P12 S0\n"
-        self.printrboard.sendCmd(cmd)
-        return
-
-    def air(self, onOff = False):
-        if (onOff == True):
-            cmd = "M42 P11 S255\n"
-        else:
-            cmd = "M42 P11 S0\n"
-        self.printrboard.sendCmd(cmd)
-        return
-
-    def smallPartManip(self, onOff = False):
+    def flyManipAir(self, onOff = False):
         if (onOff == True):
             cmd = "M42 P9 S255\n"
         else:
@@ -358,21 +346,37 @@ class santaFe:
         self.printrboard.sendCmd(cmd)
         return
 
-    def flyManip(self, onOff = False):
+    def smallPartManipAir(self, onOff = False):
         if (onOff == True):
             cmd = "M42 P10 S255\n"
         else:
             cmd = "M42 P10 S0\n"
         self.printrboard.sendCmd(cmd)
         return
+    
+    def flyManipVenturi(self, onOff = False):
+        if (onOff == True):
+            cmd = "M42 P12 S255\n"
+        else:
+            cmd = "M42 P12 S0\n"
+        self.printrboard.sendCmd(cmd)
+        return
+    
+    def smallPartManipVenturi(self, onOff = False):
+        if (onOff == True):
+            cmd = "M42 P11 S255\n"
+        else:
+            cmd = "M42 P11 S0\n"
+        self.printrboard.sendCmd(cmd)
+        return
 
     def spinSmallPartManip(self, angle):
-        cmd = "G01 E{0:.4}\n".format(angle)
+        cmd = "G01 E{0:.4}\n".format(float(angle))
         self.printrboard.sendCmd(cmd)
         return
 
     def spinFlyManip(self, angle):
-        cmd = "G01 Z{0:.4}\n".format(angle)
+        cmd = "G01 Z{0:.4}\n".format(float(angle))
         self.printrboard.sendCmd(cmd)
         return
 

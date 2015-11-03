@@ -63,12 +63,42 @@ plateHover=zPlane-(plateZOffset+hover)
 well1=[345, 71]
 maze1=[410.5, 145.5]
 
-newY=well1[1]+(5)*9.2
-robot.moveTo( ( well1[0]+80, newY-80, 0, 0, plateHover) )
-robot.moveTo( ( maze1[0], maze1[1], 0, 0, plateHover) )
-robot.moveTo( ( maze1[0], maze1[1], 0, 0, mazeHover) )
-robot.suckFromMaze( (  maze1[0], maze1[1], 0, 0, mazeHover), 5)
-robot.moveTo( ( well1[0]+80, newY-80, 0, 0, plateHover) )
+
+##robot.moveTo( ( maze1[0], maze1[1], 30, 0, 0) )
+
+robot.smallPartManipVenturi(True)
+time.sleep(5)
+robot.flyManipVenturi(True)
+time.sleep(5)
+robot.smallPartManipAir(True)
+time.sleep(.03)
+robot.flyManipAir(True)
+time.sleep(.03)
+##robot.spinSmallPartManip(100)
+##time.sleep(3)
+
+
+
+
+##time.sleep(10)
+
+
+##robot.smallPartManipVenturi(False)
+##time.sleep(10)
+##for i in range(0,50):
+##    print 'puffing'
+##    robot.flyManipAir(True)
+##    time.sleep(.01)
+##    robot.flyManipAir(False)
+##    time.sleep(.01)
+##    print 'done puffing'
+
+##newY=well1[1]+(5)*9.2
+##robot.moveTo( ( well1[0]+80, newY-80, 0, 0, plateHover) )
+##robot.moveTo( ( maze1[0], maze1[1], 0, 0, plateHover) )
+##robot.moveTo( ( maze1[0], maze1[1], 0, 0, mazeHover) )
+##robot.suckFromMaze( (  maze1[0], maze1[1], 0, 0, mazeHover), 5)
+##robot.moveTo( ( well1[0]+80, newY-80, 0, 0, plateHover) )
 
 ##newY=well1[1]+(5)*9.2
 ##robot.moveTo( ( well1[0]+80, newY-80, 0, 0, plateHover) )
@@ -98,12 +128,7 @@ robot.moveTo( ( well1[0]+80, newY-80, 0, 0, plateHover) )
 ##robot.detachPuff(0)
 ##robot.moveTo( ( well1[0], well1[1], 0, 0, plateHover) )
 
-print "Done, waiting"
 
-while True:
-    time.sleep(1)
-
-cv2.destroyAllWindows()
 robot.release()
 # writeConfig(config)
 
