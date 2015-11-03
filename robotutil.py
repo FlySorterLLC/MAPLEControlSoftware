@@ -37,7 +37,7 @@ import time
 class santaFeSerial:
     """Serial class for generic serial device."""
     
-    WaitTimeout = 1
+    WaitTimeout = 3
     portName = ""
 
     def __init__(self, port, baud = 9600, timeout = float(0.1)):
@@ -137,7 +137,7 @@ class santaFe:
 
     isInitialized = False
     
-    def __init__(self, camIndex):
+    def __init__(self, camIndex, homeBool):
         print "Initializing serial connections..."
         self.printrboard = None
         self.synaptrons = None
@@ -178,15 +178,23 @@ class santaFe:
             self.printrboard.close()
             return
 
-        print "Homing..."
-        self.home()
-        self.dwell(1)
-        self.printrboard.sendSyncCmd("G01 F13000\n")
+        if (homeBool == 1):
+            print "Homing..."
+            self.home()
+            self.dwell(1)
+            self.printrboard.sendSyncCmd("G01 F13000\n")
+        else:
+            print "Skipping homing routine (homeBool =/= 1)."
         
         self.isInitialized = True
         return
 
     def release(self):
+        self.light(False)
+        self.flyManipVenturi(False)
+        self.smallPartManipVenturi(False)
+        self.flyManipAir(False)
+        self.smallPartManipAir(False)
         self.cam.release()
         self.printrboard.close()
         self.synaptrons.close()
@@ -207,76 +215,138 @@ class santaFe:
         # disable motor, reset position and setpoint,
         # re-enable motor
         print "Homing Z axis", zNum
-
+        # start axis moving up
         address = self.ZAddressBase+zNum
         cmd = "{0},39,-7000\r\n".format(address)
         self.synaptrons.sendSyncCmd(cmd)
-        # Better than sleeping, we should poll the controller
-        # until the switch is engaged, with a timeout.
-        time.sleep(5)
+        # keep moving up until limit switch engaged
+        zHomedBool=0
+        while (zHomedBool==0):
+            zStatus = self.synaptrons.sendCmdGetReply(str(address)+",04,\r\n")
+            zHomedBool = int(zStatus.split(',')[1])
+            zHomedBool = '{0:016b}'.format(zHomedBool)
+            # print 'z-axis homed?', zHomedBool[13]
+            zHomedBool=int(zHomedBool[13])
+        
         self.synaptrons.sendSyncCmd("{0},03,22\r\n".format(address))
         self.synaptrons.sendSyncCmd("{0},05,0\r\n".format(address))
         self.synaptrons.sendSyncCmd("{0},39,0\r\n".format(address))
         self.synaptrons.sendSyncCmd("{0},03,6\r\n".format(address))
-
         return
 
     def moveTo(self, pt):
-        # This code needs to be changed. Basically, we should be sending commands to
-        # the controllers to move, then waiting to make sure they have completed the move.
-        #
-        # The printrboard has a built-in function to do this, by way of the G04 (dwell)
-        # command.
-        #
-        # The Synaptrons do not quite have that built-in, but they do have a status register
-        # and the status register has a flag that is raised when the position is within
-        # the error limit for that axis. So we could poll to see when that axis has reached
-        # its target position.
-        #
-        self.currentPosition = pt
-        cmd = "G01 X{0[0]:.4} Y{0[1]:.4}\n".format(pt)
-        self.printrboard.sendSyncCmd(cmd) # Send command to move
-        self.dwell(1) # Wait for move to finish
-
-
-        b = self.synaptrons.sendCmdGetReply("54,23,\r\n")
-        #print b
-        #print b[3]
-        """a = self.synaptrons.sendCmdGetReply("54,05,\r\n")
-        print int(a[3])
-        print iround(int(a[3])/73.33333) - int(pt[2])"""
-
-        # *This is the code that needs to change*
-        for x in range (0,30):
-            self.synaptrons.sendSyncCmd("54,39,{0}\r\n".format(int(pt[2]*self.ZCountsPerMM)))
-            a = self.synaptrons.sendCmdGetReply("54,05,\r\n")
-            #if self.synaptrons.sendCmdGetReply("54,05,\r\n").startswith("54,{0}".format(iround(73.33333*int(pt[2]) + 1))):
-            if abs(iround(int(z[1])/73.33333) - int(pt[2])) <= int(b[3]):
-                print "breaking"
-                break
-            self.synaptrons.sendSyncCmd("55,39,{0}\r\n".format(int(pt[3]*self.ZCountsPerMM)))
-            c = self.synaptrons.sendCmdGetReply("55,05,\r\n")
-            #if self.synaptrons.sendCmdGetReply("55,05,\r\n").startswith("55,{0}".format(iround(73.33333*int(pt[3])))):
-            w = c.split(',')
-            if abs(iround(int(w[1])/73.33333) - int(pt[3])) <= int(b[3]):
-                print "breaking"
-                break
-            self.synaptrons.sendSyncCmd("56,39,{0}\r\n".format(int(pt[4]*self.ZCountsPerMM)))
-            d = self.synaptrons.sendCmdGetReply("56,05,\r\n")
-            #if self.synaptrons.sendCmdGetReply("56,05,\r\n").startswith("56,{0}".format(iround(73.33333*int(pt[4])))):
-            y = d.split(',')
-            if abs(iround(int(y[1])/73.33333) - int(pt[4])) <= int(b[3]):
-                print "breaking"
-                break
-            time.sleep(0.1)
+        if (len(pt) != 5):
+            print 'Error: incorrect coordinate string. Dropping moveTo instruction'
+            return
         
+        # set z precision in mm
+        zErrorBand = 0.1
 
+        #start z-axes on their way
+        baseZAddr=self.ZAddressBase
+#        self.synaptrons = santaFeSerial(self.synaptronsPort)
+        self.synaptrons.sendSyncCmd(str(baseZAddr+0)+",39,{0}\r\n".format(int(pt[2]*self.ZCountsPerMM)))
+        self.synaptrons.sendSyncCmd(str(baseZAddr+1)+",39,{0}\r\n".format(int(pt[3]*self.ZCountsPerMM)))
+        self.synaptrons.sendSyncCmd(str(baseZAddr+2)+",39,{0}\r\n".format(int(pt[4]*self.ZCountsPerMM)))
+
+        #start x and y on their way
+        cmd = "G01 X{0[0]} Y{0[1]}\n".format(pt)
+        self.printrboard.sendSyncCmd(cmd)
+        self.dwell(1)
+        
+        zBoolArray = [0, 0, 0, 0, 0]
+        while (sum(zBoolArray) < 3):   
+            #check to see if all z-axes have arrived
+            for i in range(0,3):
+                zTemp = self.synaptrons.sendCmdGetReply(str(baseZAddr+i)+",05,\r\n")
+                zTemp = int(zTemp.split(',')[1])/self.ZCountsPerMM
+                zBoolArray[2+i] = int(abs(zTemp - pt[2+i]) < zErrorBand)
+                #print 'i is: ', i,' zstring is: ', zTemp, ' zBoolArray is: ', zBoolArray
+  
+        print 'Moved to coordinates ', pt
+        return
+
+    def puffForTime(self, duration):
+        print 'Puffing for', duration, 'seconds'
+        self.flyManip(False)
+        self.vacuum(False)
+        self.air(True)
+        self.smallPartManip(True)
+        time.sleep(duration)
+        self.smallPartManip(False)
+        self.air(False)
+        return
+    
+    def suckForTime(self, duration):
+        print 'Sucking for', duration, 'seconds'
+        self.air(False)
+        self.smallPartManip(False)
+        self.flyManip(True)
+        self.vacuum(True)
+        time.sleep(duration)
+        self.flyManip(False)
+        self.vacuum(False)
+        return
+
+    def dipAndGetFly(self, pt, duration, plateBool):
+        print 'Dipping to get fly.'
+        pt2=list(pt)
+        pt2[4]+=10+plateBool*2
+
+        self.puffForTime(0.2)
+        time.sleep(0.05)
+        self.puffForTime(0.2)
+        time.sleep(0.05)
+        self.flyManip(True)
+        self.vacuum(True)
+        self.moveTo(pt2)
+        time.sleep(duration)
+
+        pt2[4]+=-(10+plateBool*2)
+        self.moveTo(pt2)
+        return
+    
+    def depositInMaze(self, pt, duration):
+        print 'Dipping to vent fly.'
+        pt2=list(pt)
+        pt2[4]+=10
+        self.moveTo(pt2)
+        pt2[1]+=-self.mazeSlideOffset
+        self.moveTo(pt2)
+        self.puffForTime(duration)
+        pt2[1]+=self.mazeSlideOffset
+        self.moveTo(pt2)
+        pt2[4]+=-10
+        self.moveTo(pt2)
+        return
+
+    def suckFromMaze(self, pt, duration):
+        print 'Dipping to vent fly.'
+        pt2=list(pt)
+        pt2[4]+=10
+        self.moveTo(pt2)
+        pt2[1]+=-self.mazeSlideOffset
+        self.moveTo(pt2)
+        self.suckForTime(duration)
+        pt2[1]+=self.mazeSlideOffset
+        self.moveTo(pt2)
+        pt2[4]+=-10
+        self.moveTo(pt2)
+        return
+    
+    def dipAndDropFly(self, pt, duration):
+        print 'Dipping to vent fly.'
+        pt2=list(pt)
+        pt2[4]+=10
+        self.moveTo(pt2)
+        self.puffForTime(duration)
+        pt2[4]+=-10
+        self.moveTo(pt2)
         return
 
     def dwell(self, t):
         cmd = "G04 P{0}\n".format(t)
         self.printrboard.sendSyncCmd(cmd)
-        print "OK"
         return
 
     def light(self, onOff = False):
@@ -287,23 +357,7 @@ class santaFe:
         self.printrboard.sendCmd(cmd)
         return
 
-    def vacuum(self, onOff = False):
-        if (onOff == True):
-            cmd = "M42 P12 S255\n"
-        else:
-            cmd = "M42 P12 S0\n"
-        self.printrboard.sendCmd(cmd)
-        return
-
-    def air(self, onOff = False):
-        if (onOff == True):
-            cmd = "M42 P11 S255\n"
-        else:
-            cmd = "M42 P11 S0\n"
-        self.printrboard.sendCmd(cmd)
-        return
-
-    def smallPartManip(self, onOff = False):
+    def flyManipAir(self, onOff = False):
         if (onOff == True):
             cmd = "M42 P9 S255\n"
         else:
@@ -311,21 +365,37 @@ class santaFe:
         self.printrboard.sendCmd(cmd)
         return
 
-    def flyManip(self, onOff = False):
+    def smallPartManipAir(self, onOff = False):
         if (onOff == True):
             cmd = "M42 P10 S255\n"
         else:
             cmd = "M42 P10 S0\n"
         self.printrboard.sendCmd(cmd)
         return
+    
+    def flyManipVenturi(self, onOff = False):
+        if (onOff == True):
+            cmd = "M42 P12 S255\n"
+        else:
+            cmd = "M42 P12 S0\n"
+        self.printrboard.sendCmd(cmd)
+        return
+    
+    def smallPartManipVenturi(self, onOff = False):
+        if (onOff == True):
+            cmd = "M42 P11 S255\n"
+        else:
+            cmd = "M42 P11 S0\n"
+        self.printrboard.sendCmd(cmd)
+        return
 
     def spinSmallPartManip(self, angle):
-        cmd = "G01 E{0:.4}\n".format(angle)
+        cmd = "G01 E{0:.4}\n".format(float(angle))
         self.printrboard.sendCmd(cmd)
         return
 
     def spinFlyManip(self, angle):
-        cmd = "G01 Z{0:.4}\n".format(angle)
+        cmd = "G01 Z{0:.4}\n".format(float(angle))
         self.printrboard.sendCmd(cmd)
         return
 
