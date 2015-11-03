@@ -2,6 +2,8 @@
 
 ## Copyright (c) 2015, FlySorter, LLC
 
+## Hardcoded program to pick & deposit flies
+
 import cv2
 import numpy as np
 import time
