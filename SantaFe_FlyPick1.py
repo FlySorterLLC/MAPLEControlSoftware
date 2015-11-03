@@ -43,7 +43,7 @@ readConfig(config)
 
 homeBool=0
 
-robot = ben_robotutil.santaFe(CamIndex,homeBool)
+robot = robotutil.santaFe(CamIndex,homeBool)
 
 if robot.isInitialized == False:
     print "Initialization error."
