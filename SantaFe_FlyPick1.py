@@ -66,16 +66,19 @@ well1=[345, 71]
 maze1=[410.5, 145.5]
 
 
+robot.smallPartManipAir(True)
+time.sleep(20)
+
 ##robot.moveTo( ( maze1[0], maze1[1], 30, 0, 0) )
 
-robot.smallPartManipVenturi(True)
-time.sleep(5)
-robot.flyManipVenturi(True)
-time.sleep(5)
-robot.smallPartManipAir(True)
-time.sleep(.03)
-robot.flyManipAir(True)
-time.sleep(.03)
+##robot.smallPartManipVenturi(True)
+##time.sleep(5)
+##robot.flyManipVenturi(True)
+##time.sleep(5)
+##robot.smallPartManipAir(True)
+##time.sleep(.03)
+##robot.flyManipAir(True)
+##time.sleep(.03)
 ##robot.spinSmallPartManip(100)
 ##time.sleep(3)
 
