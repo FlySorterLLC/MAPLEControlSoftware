@@ -1,7 +1,13 @@
 ## Copyright (c) 2015, FlySorter LLC
 ##
 ## This software is licensed under the GPL v2.0
+#
+#  File: robotutil.py
+#  Description: Contains classes and functions used to control
+#     the FlySorter automated experiment platform (project name Santa Fe).
+#
 
+import math
 import cv2
 import numpy as np
 import sys
@@ -9,13 +15,32 @@ import glob
 import serial
 import time
 
+# Serial communications class that is used for multiple devices.
+# In Santa Fe, the printrboard and the Z axis motor controllers
+# are each serial devices. The printrboard is connected directly
+# via USB, and the Z axis controllers (Synaptron boards from Solutions Cubed)
+# are connected together on an RS232 serial bus, which is connected to
+# the computer by a USB-to-Serial converter.
+#
+# 1. Printrboard - controls X, Y, and rotation for Z0 and Z2
+# 2. Motor control board (3x Synaptron boards + USB-to-serial converter) - up & down on Z0, Z1 and Z2
+#
+# So this class will be instantiated twice (at least) -- once for the
+# printrboard, and once for the Z axis controllers (one serial port for
+# all three controllers).
+#
+# Documentation is available online for G-codes (printrboard) and the Synaptron controller:
+#
+# http://reprap.org/wiki/G-code
+# http://solutions-cubed.com/app-notes-downloads/#SYNAPU
+#
 class santaFeSerial:
-    """Serial class for robot device."""
+    """Serial class for generic serial device."""
     
-    WaitTimeout = 1
+    WaitTimeout = 3
     portName = ""
 
-    def __init__(self, port, baud = 9600, timeout = 0.25):
+    def __init__(self, port, baud = 9600, timeout = float(0.1)):
         self.isOpened = False
         try:
             self.ser = serial.Serial(port, baudrate = baud, timeout = timeout)
@@ -27,11 +52,12 @@ class santaFeSerial:
     def close(self):
         self.ser.close()
         
+    # Retrieve any waiting data on the port
     def getSerOutput(self):
         #print "GSO:"
         output = ''
         while True:
-            # read() blocks for the timeout set below *if* there is nothing to read
+            # read() blocks for the timeout set above *if* there is nothing to read
             #   otherwise it returns immediately
             byte = self.ser.read(1)
             if byte is None or byte == '':
@@ -42,6 +68,8 @@ class santaFeSerial:
         #print "GSO Output:", output
         return output
 
+    # Block and wait for the device to reply with "ok" or "OK"
+    # Times out after self.WaitTimeout (set above)
     def waitForOK(self):
         #print "WFO:"
         output = ''
@@ -51,6 +79,7 @@ class santaFeSerial:
             byte = self.ser.read(1)
             if byte is None or byte == '':
                 timeoutCount += 1
+                time.sleep(1)
             else:
                 output += byte
             if timeoutCount > timeoutMax:
@@ -70,6 +99,7 @@ class santaFeSerial:
         self.ser.flush()
 
     # Send a command to the device via serial port
+    # Waits to receive reply of "ok" or "OK" via waitForOK()
     def sendSyncCmd(self, cmd):
         #print "SSC:", cmd
         self.ser.flushInput()
@@ -77,26 +107,23 @@ class santaFeSerial:
         self.ser.flush()
         self.waitForOK()
 
-    # Send a command and return the reply
+    # Send a command and retrieve the reply
     def sendCmdGetReply(self, cmd):
         self.ser.flushInput()
         self.ser.write(cmd)
         self.ser.flush()
         return self.getSerOutput()
 
-    def sendFile(self, filename):
-        return 1
-
 
 class santaFe:
     """Class for fly manipulation robot."""
 
     # Constants
-
     
     # There are 6 encoder counts per revolution, gear ratio of motor is 29.86:1,
     # leadscrew pitch is 1/10.4" and there are 25.4 mm/in
     ZCountsPerMM = 6.0*29.86*10.4/25.4 # = 79.36
+    # Maybe this should be in a config file??
     ZAddressBase = 54
 
     printrboardPort = ""
@@ -104,12 +131,13 @@ class santaFe:
 
     imageCenter = np.float32( [2592.0/2.0, 1944.0/2.0 ])
 
+    # These variables should be kept up-to-date
     currentPosition = np.array([0.0, 0.0, 0.0, 0.0, 0.0])
     currentRotation = np.array([0.0, 0.0])
 
     isInitialized = False
     
-    def __init__(self, camIndex):
+    def __init__(self, camIndex, homeBool):
         print "Initializing serial connections..."
         self.printrboard = None
         self.synaptrons = None
@@ -143,11 +171,6 @@ class santaFe:
                 self.synaptrons.close()
             return
 
-        # Temporary hack! Synaptrons don't like when you switch
-        # between the different addresses, so we open & close the port
-        # for each operation.
-        self.synaptrons.close()
-
         self.cam = cameraInit(camIndex)
         if self.cam == None:
             print "Camera init fail."
@@ -155,15 +178,23 @@ class santaFe:
             self.printrboard.close()
             return
 
-        print "Homing..."
-        self.home()
-        self.dwell(1)
-        self.printrboard.sendSyncCmd("G01 F5000\n")
+        if (homeBool == 1):
+            print "Homing..."
+            self.home()
+            self.dwell(1)
+            self.printrboard.sendSyncCmd("G01 F13000\n")
+        else:
+            print "Skipping homing routine (homeBool =/= 1)."
         
         self.isInitialized = True
         return
 
     def release(self):
+        self.light(False)
+        self.flyManipVenturi(False)
+        self.smallPartManipVenturi(False)
+        self.flyManipAir(False)
+        self.smallPartManipAir(False)
         self.cam.release()
         self.printrboard.close()
         self.synaptrons.close()
@@ -173,6 +204,7 @@ class santaFe:
         self.homeZAxis(0)
         self.homeZAxis(1)
         self.homeZAxis(2)
+        # Then home Y, then X (in that order, b/c of CoreXY configuration)
         self.printrboard.sendSyncCmd("G28 Y\n")
         self.printrboard.sendSyncCmd("G28 X\n")
         return
@@ -183,54 +215,133 @@ class santaFe:
         # disable motor, reset position and setpoint,
         # re-enable motor
         print "Homing Z axis", zNum
-        # TEMPORARY HACK
-        self.synaptrons = santaFeSerial(self.synaptronsPort)
+        # start axis moving up
         address = self.ZAddressBase+zNum
         cmd = "{0},39,-7000\r\n".format(address)
         self.synaptrons.sendSyncCmd(cmd)
-        # Better than sleeping, we should poll the controller
-        # until the switch is engaged, with a timeout.
-        time.sleep(5)
+        # keep moving up until limit switch engaged
+        zHomedBool=0
+        while (zHomedBool==0):
+            zStatus = self.synaptrons.sendCmdGetReply(str(address)+",04,\r\n")
+            zHomedBool = int(zStatus.split(',')[1])
+            zHomedBool = '{0:016b}'.format(zHomedBool)
+            # print 'z-axis homed?', zHomedBool[13]
+            zHomedBool=int(zHomedBool[13])
+        
         self.synaptrons.sendSyncCmd("{0},03,22\r\n".format(address))
         self.synaptrons.sendSyncCmd("{0},05,0\r\n".format(address))
         self.synaptrons.sendSyncCmd("{0},39,0\r\n".format(address))
         self.synaptrons.sendSyncCmd("{0},03,6\r\n".format(address))
-        # TEMPORARY HACK
-        self.synaptrons.close()
         return
 
     def moveTo(self, pt):
-        self.currentPosition = pt
-        cmd = "G01 X{0[0]:.4} Y{0[1]:.4}\n".format(pt)
+        if (len(pt) != 5):
+            print 'Error: incorrect coordinate string. Dropping moveTo instruction'
+            return
+        
+        # set z precision in mm
+        zErrorBand = 0.1
+
+        #start z-axes on their way
+        baseZAddr=self.ZAddressBase
+#        self.synaptrons = santaFeSerial(self.synaptronsPort)
+        self.synaptrons.sendSyncCmd(str(baseZAddr+0)+",39,{0}\r\n".format(int(pt[2]*self.ZCountsPerMM)))
+        self.synaptrons.sendSyncCmd(str(baseZAddr+1)+",39,{0}\r\n".format(int(pt[3]*self.ZCountsPerMM)))
+        self.synaptrons.sendSyncCmd(str(baseZAddr+2)+",39,{0}\r\n".format(int(pt[4]*self.ZCountsPerMM)))
+
+        #start x and y on their way
+        cmd = "G01 X{0[0]} Y{0[1]}\n".format(pt)
         self.printrboard.sendSyncCmd(cmd)
         self.dwell(1)
-
-        time.sleep(0.5)
-
-        # TEMPORARY HACK
-        self.synaptrons = santaFeSerial(self.synaptronsPort)
-        self.synaptrons.sendSyncCmd("54,39,{0}\r\n".format(int(pt[2]*self.ZCountsPerMM)))
-        # TEMPORARY HACK
-        self.synaptrons.close()
-
-        time.sleep(0.5)
         
-        # TEMPORARY HACK
-        self.synaptrons = santaFeSerial(self.synaptronsPort)
-        self.synaptrons.sendSyncCmd("55,39,{0}\r\n".format(int(pt[3]*self.ZCountsPerMM)))
-        # TEMPORARY HACK
-        self.synaptrons.close()
+        zBoolArray = [0, 0, 0, 0, 0]
+        while (sum(zBoolArray) < 3):   
+            #check to see if all z-axes have arrived
+            for i in range(0,3):
+                zTemp = self.synaptrons.sendCmdGetReply(str(baseZAddr+i)+",05,\r\n")
+                zTemp = int(zTemp.split(',')[1])/self.ZCountsPerMM
+                zBoolArray[2+i] = int(abs(zTemp - pt[2+i]) < zErrorBand)
+                #print 'i is: ', i,' zstring is: ', zTemp, ' zBoolArray is: ', zBoolArray
+  
+        print 'Moved to coordinates ', pt
+        return
 
-        time.sleep(0.5)
+    def puffForTime(self, duration):
+        print 'Puffing for', duration, 'seconds'
+        self.flyManip(False)
+        self.vacuum(False)
+        self.air(True)
+        self.smallPartManip(True)
+        time.sleep(duration)
+        self.smallPartManip(False)
+        self.air(False)
+        return
+    
+    def suckForTime(self, duration):
+        print 'Sucking for', duration, 'seconds'
+        self.air(False)
+        self.smallPartManip(False)
+        self.flyManip(True)
+        self.vacuum(True)
+        time.sleep(duration)
+        self.flyManip(False)
+        self.vacuum(False)
+        return
 
-        # TEMPORARY HACK
-        self.synaptrons = santaFeSerial(self.synaptronsPort)
-        self.synaptrons.sendSyncCmd("56,39,{0}\r\n".format(int(pt[4]*self.ZCountsPerMM)))
-        # TEMPORARY HACK
-        self.synaptrons.close()
+    def dipAndGetFly(self, pt, duration, plateBool):
+        print 'Dipping to get fly.'
+        pt2=list(pt)
+        pt2[4]+=10+plateBool*2
 
-        time.sleep(0.5)
+        self.puffForTime(0.2)
+        time.sleep(0.05)
+        self.puffForTime(0.2)
+        time.sleep(0.05)
+        self.flyManip(True)
+        self.vacuum(True)
+        self.moveTo(pt2)
+        time.sleep(duration)
 
+        pt2[4]+=-(10+plateBool*2)
+        self.moveTo(pt2)
+        return
+    
+    def depositInMaze(self, pt, duration):
+        print 'Dipping to vent fly.'
+        pt2=list(pt)
+        pt2[4]+=10
+        self.moveTo(pt2)
+        pt2[1]+=-self.mazeSlideOffset
+        self.moveTo(pt2)
+        self.puffForTime(duration)
+        pt2[1]+=self.mazeSlideOffset
+        self.moveTo(pt2)
+        pt2[4]+=-10
+        self.moveTo(pt2)
+        return
+
+    def suckFromMaze(self, pt, duration):
+        print 'Dipping to vent fly.'
+        pt2=list(pt)
+        pt2[4]+=10
+        self.moveTo(pt2)
+        pt2[1]+=-self.mazeSlideOffset
+        self.moveTo(pt2)
+        self.suckForTime(duration)
+        pt2[1]+=self.mazeSlideOffset
+        self.moveTo(pt2)
+        pt2[4]+=-10
+        self.moveTo(pt2)
+        return
+    
+    def dipAndDropFly(self, pt, duration):
+        print 'Dipping to vent fly.'
+        pt2=list(pt)
+        pt2[4]+=10
+        self.moveTo(pt2)
+        self.puffForTime(duration)
+        pt2[4]+=-10
+        self.moveTo(pt2)
         return
 
     def dwell(self, t):
@@ -246,23 +357,7 @@ class santaFe:
         self.printrboard.sendCmd(cmd)
         return
 
-    def vacuum(self, onOff = False):
-        if (onOff == True):
-            cmd = "M42 P12 S255\n"
-        else:
-            cmd = "M42 P12 S0\n"
-        self.printrboard.sendCmd(cmd)
-        return
-
-    def air(self, onOff = False):
-        if (onOff == True):
-            cmd = "M42 P11 S255\n"
-        else:
-            cmd = "M42 P11 S0\n"
-        self.printrboard.sendCmd(cmd)
-        return
-
-    def smallPartManip(self, onOff = False):
+    def flyManipAir(self, onOff = False):
         if (onOff == True):
             cmd = "M42 P9 S255\n"
         else:
@@ -270,21 +365,37 @@ class santaFe:
         self.printrboard.sendCmd(cmd)
         return
 
-    def flyManip(self, onOff = False):
+    def smallPartManipAir(self, onOff = False):
         if (onOff == True):
             cmd = "M42 P10 S255\n"
         else:
             cmd = "M42 P10 S0\n"
         self.printrboard.sendCmd(cmd)
         return
+    
+    def flyManipVenturi(self, onOff = False):
+        if (onOff == True):
+            cmd = "M42 P12 S255\n"
+        else:
+            cmd = "M42 P12 S0\n"
+        self.printrboard.sendCmd(cmd)
+        return
+    
+    def smallPartManipVenturi(self, onOff = False):
+        if (onOff == True):
+            cmd = "M42 P11 S255\n"
+        else:
+            cmd = "M42 P11 S0\n"
+        self.printrboard.sendCmd(cmd)
+        return
 
     def spinSmallPartManip(self, angle):
-        cmd = "G01 E{0:.4}\n".format(angle)
+        cmd = "G01 E{0:.4}\n".format(float(angle))
         self.printrboard.sendCmd(cmd)
         return
 
     def spinFlyManip(self, angle):
-        cmd = "G01 Z{0:.4}\n".format(angle)
+        cmd = "G01 Z{0:.4}\n".format(float(angle))
         self.printrboard.sendCmd(cmd)
         return
 
@@ -315,14 +426,11 @@ def availablePorts():
 
     if sys.platform.startswith('win'):
         ports = ['COM' + str(i + 1) for i in range(256)]
-
     elif sys.platform.startswith('linux') or sys.platform.startswith('cygwin'):
         # this is to exclude your current terminal "/dev/tty"
         ports = glob.glob('/dev/tty[A-Za-z]*')
-
     elif sys.platform.startswith('darwin'):
         ports = glob.glob('/dev/tty.*')
-
     else:
         raise EnvironmentError('Unsupported platform')
 
@@ -335,3 +443,8 @@ def availablePorts():
         except (OSError, serial.SerialException):
             pass
     return result
+
+def iround(x):
+     y = round(x) - .5
+     return int(y) + (y > 0)
+
