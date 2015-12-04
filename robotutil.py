@@ -397,7 +397,7 @@ class santaFe:
     def moveXYList(self, ptList):
         # TODO: check shape of list
         for pt in ptList:
-            moveXY(pt)
+            self.moveXY(pt)
         return
 
     def dwell(self, t):
