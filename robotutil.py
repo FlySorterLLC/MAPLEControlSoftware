@@ -14,6 +14,9 @@ import sys
 import glob
 import serial
 import time
+import ConfigParser
+
+import pyicic.IC_ImagingControl
 
 # Serial communications class that is used for multiple devices.
 # In Santa Fe, the printrboard and the Z axis motor controllers
@@ -118,29 +121,41 @@ class santaFeSerial:
 class santaFe:
     """Class for fly manipulation robot."""
 
-    # Constants
-    
-    # There are 6 encoder counts per revolution, gear ratio of motor is 29.86:1,
-    # leadscrew pitch is 1/10.4" and there are 25.4 mm/in
-    ZCountsPerMM = 6.0*29.86*10.4/25.4 # = 79.36
-    # Maybe this should be in a config file??
-    ZAddressBase = 54
-
     printrboardPort = ""
     synaptronsPort = ""
+    dispenserPort = ""
 
-    imageCenter = np.float32( [2592.0/2.0, 1944.0/2.0 ])
-
-    # These variables should be kept up-to-date
+    # These variables should be kept up-to-date by functions that change them
     currentPosition = np.array([0.0, 0.0, 0.0, 0.0, 0.0])
     currentRotation = np.array([0.0, 0.0])
 
     isInitialized = False
+
+    # There are 6 encoder counts per revolution, gear ratio of motor is 29.86:1,
+    # leadscrew pitch is 1/10.4" and there are 25.4 mm/in
+    ZCountsPerMM = 6.0*29.86*10.4/25.4
+
+    # Configuration defaults
+    configDefaults = {'WorkspaceXSize': '1000',
+                      'WorkspaceYSize': '270',
+                      'MaxZ1Depth': '68',
+                      'MaxZ2Depth': '50',
+                      'MaxZ3Depth': '55',
+                      'ZAddressBase': '54',
+                      'OutputDir': 'Photos',
+                      }
     
-    def __init__(self, camIndex, homeBool):
+    def __init__(self, robotConfigFile):
+        print "Reading config file..."
+        self.config = ConfigParser.RawConfigParser(self.configDefaults)
+        self.readConfig(robotConfigFile)
+
+        
         print "Initializing serial connections..."
         self.printrboard = None
         self.synaptrons = None
+
+        
         # Search serial ports, look for motor control board and printrboard
         portList = availablePorts()
         print "Port list:", portList
@@ -171,31 +186,59 @@ class santaFe:
                 self.synaptrons.close()
             return
 
-        self.cam = cameraInit(camIndex)
+        self.cam = cameraInit()
         if self.cam == None:
             print "Camera init fail."
             self.synaptrons.close()
             self.printrboard.close()
             return
-
-        if (homeBool == 1):
-            print "Homing..."
-            self.home()
-            self.dwell(1)
-            self.printrboard.sendSyncCmd("G01 F13000\n")
-        else:
-            print "Skipping homing routine (homeBool =/= 1)."
-        
+       
+        self.currentPosition = self.getCurrentPosition()
         self.isInitialized = True
         return
 
+    def captureImage(self):
+        self.cam.start_live()
+        self.cam.snap_image()
+        (imgdata, w, h, d) = self.cam.get_image_data()
+        self.cam.stop_live()
+
+        #print "Image is", w, "by", h
+
+        img = np.ndarray(buffer = imgdata,
+                         dtype = np.uint8,
+                         shape = (h, w, d))
+
+        return img
+
+    # Read in the config, and assign values to the appropriate vars
+    def readConfig(self, configFile):
+        self.config.read(configFile)
+        self.OutputDir = self.config.get('DEFAULT', 'OutputDir')
+        self.WorkspaceSize = np.array( [ float(self.config.get('DEFAULT', 'WorkspaceXSize')), float(self.config.get('DEFAULT', 'WorkspaceYSize')) ] )
+        self.ZAddressBase = int(self.config.get('DEFAULT', 'ZAddressBase'))
+##        self.MaxZDepth
+##                      'MaxZ1Depth': '50',
+##                      'MaxZ2Depth': '60',
+##                      'MaxZ3Depth': '40',
+##                      'ZBaseAddress': '54',
+        return
+        
+    # Write out the config file after transferring values from vars
+    def writeConfig(self, configFile):
+##        self.config.set('DEFAULT', 'CamIndex', CamIndex)
+##        self.config.set('DEFAULT', 'OutputDir', OutputDir)
+##        with open('FlySorter.cfg', 'wb') as configfile:
+##            self.config.write(configfile)
+        return
+        
     def release(self):
         self.light(False)
         self.flyManipVenturi(False)
         self.smallPartManipVenturi(False)
         self.flyManipAir(False)
         self.smallPartManipAir(False)
-        self.cam.release()
+        self.cam.close()
         self.printrboard.close()
         self.synaptrons.close()
 
@@ -207,6 +250,8 @@ class santaFe:
         # Then home Y, then X (in that order, b/c of CoreXY configuration)
         self.printrboard.sendSyncCmd("G28 Y\n")
         self.printrboard.sendSyncCmd("G28 X\n")
+        self.printrboard.sendSyncCmd("G01 F10000\n")
+        self.currentPosition = np.array([0., 0., 0., 0., 0.])
         return
         
     def homeZAxis(self, zNum):
@@ -227,13 +272,91 @@ class santaFe:
             zHomedBool = '{0:016b}'.format(zHomedBool)
             # print 'z-axis homed?', zHomedBool[13]
             zHomedBool=int(zHomedBool[13])
+
+        # Temporarily set Z position to zero
+        self.synaptrons.sendSyncCmd("{0},03,22\r\n".format(address)) # Stop motor
+        self.synaptrons.sendSyncCmd("{0},05,0\r\n".format(address)) # Set position to zero
+        self.synaptrons.sendSyncCmd("{0},39,0\r\n".format(address)) # Set set point to zero
+        self.synaptrons.sendSyncCmd("{0},03,6\r\n".format(address)) # Re-enable motor
+
+        # Now move it back down until limit switch is disengaged
+        zHomedBool = 1
+        zPos = 15 # we know there are at least 15 encoder steps before the switch is disengaged
+        while (zHomedBool == 1):
+            cmd = "{0},39,{1}\r\n".format(address, zPos)
+            self.synaptrons.sendSyncCmd(cmd)
+            zStatus = self.synaptrons.sendCmdGetReply(str(address)+",04,\r\n")
+            zHomedBool = int(zStatus.split(',')[1])
+            zHomedBool = '{0:016b}'.format(zHomedBool)
+            # print 'zPos', zPos, 'z-axis homed?', zHomedBool[13]
+            zHomedBool=int(zHomedBool[13])
+            zPos=zPos+1
+
+        # Once again, set position to zero
+        self.synaptrons.sendSyncCmd("{0},03,22\r\n".format(address)) # Stop motor
+        self.synaptrons.sendSyncCmd("{0},05,0\r\n".format(address)) # Set position to zero
+        self.synaptrons.sendSyncCmd("{0},39,0\r\n".format(address)) # Set set point to zero
+        self.synaptrons.sendSyncCmd("{0},03,6\r\n".format(address)) # Re-enable motor
         
-        self.synaptrons.sendSyncCmd("{0},03,22\r\n".format(address))
-        self.synaptrons.sendSyncCmd("{0},05,0\r\n".format(address))
-        self.synaptrons.sendSyncCmd("{0},39,0\r\n".format(address))
-        self.synaptrons.sendSyncCmd("{0},03,6\r\n".format(address))
+        self.currentPosition[2+zNum] = 0.
         return
 
+    def getZPos(self, zNum):
+        address = self.ZAddressBase+zNum
+        zPosStr = self.synaptrons.sendCmdGetReply(str(address)+",05,\r\n")
+        zPos = float(zPosStr.split(',')[1])/self.ZCountsPerMM
+        #print zPos
+        return zPos
+    
+    def getCurrentPosition(self):
+        positions = self.printrboard.sendCmdGetReply("M114\n").split(' ')
+        # M114 returns string like: "X:10.00 Y:10.00 Z:0.00 E:0.00 Count X: 19.99 Y:0.00 Z:0.00"
+        xPos = float(positions[0].split(':')[1])
+        yPos = float(positions[1].split(':')[1])
+        return np.array( [ xPos, yPos, self.getZPos(0), self.getZPos(1), self.getZPos(2) ] )
+
+    def moveXY(self, pt):
+        if (len(pt) != 2):
+            print 'Error: incorrect coordinate string. Dropping moveXY instruction'
+            return
+
+        #start x and y on their way
+        cmd = "G01 X{0[0]} Y{0[1]}\n".format(pt)
+        self.printrboard.sendSyncCmd(cmd)
+        self.currentPosition[0] = pt[0]
+        self.currentPosition[1] = pt[1]
+        
+
+    def moveZ(self, pt):
+        if (len(pt) != 5):
+            print 'Error: incorrect coordinate string. Dropping moveZ instruction'
+            return
+        
+        # set z precision in mm
+        zErrorBand = 0.1
+
+        baseZAddr=self.ZAddressBase
+#        self.synaptrons = santaFeSerial(self.synaptronsPort)
+        self.synaptrons.sendSyncCmd(str(baseZAddr+0)+",39,{0}\r\n".format(int(pt[2]*self.ZCountsPerMM)))
+        self.synaptrons.sendSyncCmd(str(baseZAddr+1)+",39,{0}\r\n".format(int(pt[3]*self.ZCountsPerMM)))
+        self.synaptrons.sendSyncCmd(str(baseZAddr+2)+",39,{0}\r\n".format(int(pt[4]*self.ZCountsPerMM)))
+
+        zBoolArray = [0, 0, 0, 0, 0]
+        while (sum(zBoolArray) < 3):   
+            #check to see if all z-axes have arrived
+            for i in range(0,3):
+                zTemp = self.synaptrons.sendCmdGetReply(str(baseZAddr+i)+",05,\r\n")
+                zTemp = int(zTemp.split(',')[1])/self.ZCountsPerMM
+                zBoolArray[2+i] = int(abs(zTemp - pt[2+i]) < zErrorBand)
+                #print 'i is: ', i,' zstring is: ', zTemp, ' zBoolArray is: ', zBoolArray
+  
+        print 'Moved to Z coordinates ', pt
+        self.currentPosition[2] = pt[0]
+        self.currentPosition[3] = pt[1]
+        self.currentPosition[4] = pt[2]
+        return
+        
+        
     def moveTo(self, pt):
         if (len(pt) != 5):
             print 'Error: incorrect coordinate string. Dropping moveTo instruction'
@@ -250,8 +373,7 @@ class santaFe:
         self.synaptrons.sendSyncCmd(str(baseZAddr+2)+",39,{0}\r\n".format(int(pt[4]*self.ZCountsPerMM)))
 
         #start x and y on their way
-        cmd = "G01 X{0[0]} Y{0[1]}\n".format(pt)
-        self.printrboard.sendSyncCmd(cmd)
+        self.moveXY( (pt[0], pt[1]) )
         self.dwell(1)
         
         zBoolArray = [0, 0, 0, 0, 0]
@@ -264,6 +386,73 @@ class santaFe:
                 #print 'i is: ', i,' zstring is: ', zTemp, ' zBoolArray is: ', zBoolArray
   
         print 'Moved to coordinates ', pt
+        self.currentPosition[2] = pt[2]
+        self.currentPosition[3] = pt[3]
+        self.currentPosition[4] = pt[4]
+        return
+
+    def moveRel(self, pt):
+        self.moveTo(self.currentPosition + pt)
+
+    def moveXYList(self, ptList):
+        # TODO: check shape of list
+        for pt in ptList:
+            moveXY(pt)
+        return
+
+    def dwell(self, t):
+        cmd = "G04 P{0}\n".format(t)
+        self.printrboard.sendSyncCmd(cmd)
+        return
+
+    def light(self, onOff = False):
+        if ( onOff == True ):
+            cmd = "M106\n"
+        else:
+            cmd = "M107\n"
+        self.printrboard.sendCmd(cmd)
+        return
+
+    def flyManipAir(self, onOff = False):
+        if (onOff == True):
+            cmd = "M42 P9 S255\n"
+        else:
+            cmd = "M42 P9 S0\n"
+        self.printrboard.sendCmd(cmd)
+        return
+
+    def smallPartManipAir(self, onOff = False):
+        if (onOff == True):
+            cmd = "M42 P10 S255\n"
+        else:
+            cmd = "M42 P10 S0\n"
+        self.printrboard.sendCmd(cmd)
+        return
+    
+    def flyManipVenturi(self, onOff = False):
+        if (onOff == True):
+            cmd = "M42 P12 S255\n"
+        else:
+            cmd = "M42 P12 S0\n"
+        self.printrboard.sendCmd(cmd)
+        return
+    
+    def smallPartManipVenturi(self, onOff = False):
+        if (onOff == True):
+            cmd = "M42 P11 S255\n"
+        else:
+            cmd = "M42 P11 S0\n"
+        self.printrboard.sendCmd(cmd)
+        return
+
+    def spinSmallPartManip(self, angle):
+        cmd = "G01 E{0:.4}\n".format(float(angle))
+        self.printrboard.sendCmd(cmd)
+        return
+
+    def spinFlyManip(self, angle):
+        cmd = "G01 Z{0:.4}\n".format(float(angle))
+        self.printrboard.sendCmd(cmd)
         return
 
     def puffForTime(self, duration):
@@ -344,81 +533,21 @@ class santaFe:
         self.moveTo(pt2)
         return
 
-    def dwell(self, t):
-        cmd = "G04 P{0}\n".format(t)
-        self.printrboard.sendSyncCmd(cmd)
-        return
-
-    def light(self, onOff = False):
-        if ( onOff == True ):
-            cmd = "M106\n"
-        else:
-            cmd = "M107\n"
-        self.printrboard.sendCmd(cmd)
-        return
-
-    def flyManipAir(self, onOff = False):
-        if (onOff == True):
-            cmd = "M42 P9 S255\n"
-        else:
-            cmd = "M42 P9 S0\n"
-        self.printrboard.sendCmd(cmd)
-        return
-
-    def smallPartManipAir(self, onOff = False):
-        if (onOff == True):
-            cmd = "M42 P10 S255\n"
-        else:
-            cmd = "M42 P10 S0\n"
-        self.printrboard.sendCmd(cmd)
-        return
-    
-    def flyManipVenturi(self, onOff = False):
-        if (onOff == True):
-            cmd = "M42 P12 S255\n"
-        else:
-            cmd = "M42 P12 S0\n"
-        self.printrboard.sendCmd(cmd)
-        return
-    
-    def smallPartManipVenturi(self, onOff = False):
-        if (onOff == True):
-            cmd = "M42 P11 S255\n"
-        else:
-            cmd = "M42 P11 S0\n"
-        self.printrboard.sendCmd(cmd)
-        return
-
-    def spinSmallPartManip(self, angle):
-        cmd = "G01 E{0:.4}\n".format(float(angle))
-        self.printrboard.sendCmd(cmd)
-        return
-
-    def spinFlyManip(self, angle):
-        cmd = "G01 Z{0:.4}\n".format(float(angle))
-        self.printrboard.sendCmd(cmd)
-        return
-
-
 # Set up close-up camera
-def cameraInit(cam=1):
-    print "Opening camera interface (", cam, ")"
-    close = cv2.VideoCapture(cam)
-    print "Setting properties"
-    close.set(cv2.cv.CV_CAP_PROP_EXPOSURE, -4)
-    close.set(cv2.cv.CV_CAP_PROP_BRIGHTNESS, 10)
-    close.set(cv2.cv.CV_CAP_PROP_GAIN, 5)
-    close.set(cv2.cv.CV_CAP_PROP_SATURATION, 12)
-    close.set(cv2.cv.CV_CAP_PROP_FRAME_WIDTH, 2592)
-    close.set(cv2.cv.CV_CAP_PROP_FRAME_HEIGHT, 1944)
-    time.sleep(1)
-    s, throwaway = close.read()
-    if (s == False) or (close.get(cv2.cv.CV_CAP_PROP_FRAME_WIDTH) != 2592):
-        close.release()
-        print "Close cam init failed.", s
-        return None
-    else:
-        return close
+def cameraInit():
+    global ic_ic
+    print "Opening camera interface."
+    ic_ic = pyicic.IC_ImagingControl.IC_ImagingControl()
+    ic_ic.init_library()
+    cam_names = ic_ic.get_unique_device_names()
+    cam = ic_ic.get_device(cam_names[0])
+    cam.open()
+    cam.gain.value = 10
+    cam.exposure.value = -7
+    cam.set_video_format('BY8 (2592x1944)')
+    cam.set_frame_rate(4.00)
+    cam.prepare_live()
+    return cam
 
 
 def availablePorts():

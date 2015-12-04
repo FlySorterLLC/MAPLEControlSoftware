@@ -1,6 +1,6 @@
 #! /usr/bin/env python
 
-## Copyright (c) 2015, FlySorter, LLC
+## Copyright (c) 2015, William Long
 ## Machine Vision code to take images of flies and return the locations (in pixels) of
 ## all flies in the image. 
 ## Also draws the contours, bounding rectangles, and centroids of each fly
@@ -17,7 +17,7 @@ import ConfigParser
 #from matplotlib import pyplot as plt
 #from itertools import combinations
 
-reference = (390,410)   #pixel coordinate that represents a robot movement of (x = 40, y = 15)
+reference = (40,15)   #pixel coordinate that represents a robot movement of (x = 40, y = 15)
 PPMM = 28               #pixels per millimeter at the height of optimum resolution
 
 padLocation = (1000, 3000, 0, 0, 0)     #location of top left hand corner of pad
@@ -31,15 +31,15 @@ class imageProcess:
     #thresholding in order to better identify flies.
     #Specifically, it thresholds images for objects within a color range
     
-    #Takes an image file as an argument and returns nothing
+    #Takes an image array as an argument and returns nothing
     def findFlies(self, image):
         
-        frame = cv2.imread(image)
+        frame = image
         # Convert BGR to HSV
         hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
 
         # define range of red color in HSV
-        lower_red = np.array([0,30,30])
+        lower_red = np.array([0,0,0])
         upper_red = np.array([255,250,100])
 
         # Threshold the HSV image to get only red colors
@@ -51,6 +51,9 @@ class imageProcess:
         # Writes the result onto a new file called 'res.bmp'
         cv2.imwrite('res.bmp', mask)
 
+        return res
+
+
     #returnFlies takes a processed image 'res.bmp' and:
     # 1. Draws green contours around all flies
     # 2. Draws a red bounding rectangle around each fly
@@ -60,7 +63,7 @@ class imageProcess:
     
     def returnFlies(self,image, reference):
         
-        img = cv2.imread(image)
+        img = image
         #img = cv2.resize(img,(400,500))     #have to resize image otherwise it's too big!
         
         gray = cv2.cvtColor(img,cv2.COLOR_BGR2GRAY)
@@ -108,11 +111,11 @@ class imageProcess:
 
         
     def execute(self, image, reference):
-        self.findFlies(image)
-        return self.returnFlies("res.bmp", reference)
+        result = self.findFlies(image)
+        return self.returnFlies(result, reference)
 
 # -------   Test Programs ------------
-a = imageProcess()
+#a = imageProcess()
 #a.config("grid-1.bmp")
 #print a.execute("1.bmp", reference)
 

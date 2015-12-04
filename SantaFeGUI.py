@@ -5,34 +5,10 @@
 import cv2
 import numpy as np
 import time
-import ConfigParser
-
 import robotutil
 
-## Some defaults & settings
-
-# Configuration defaults
-configDefaults = {'CamIndex': '0',
-                  'OutputDir': 'C:/Users/DaveZ/Documents/Training Data',
-                  # Add in ZAxisBaseAddress to config file...
-                  }
-
-# Read in the config, and assign values to the appropriate vars
-def readConfig(config):
-    global CamIndex, OutputDir
-    config.read('SantaFe.cfg')
-    CamIndex = config.getint('DEFAULT', 'CamIndex')
-    OutputDir = config.get('DEFAULT', 'OutputDir')
-    # Add in ZAxisBaseAddress to config file...
-    
-#### BEGIN PGM ####
-
-# Open and read in configuration file
-config = ConfigParser.RawConfigParser(configDefaults)
-readConfig(config)
-
 # And pass in the ZAxisBaseAddress here
-robot = robotutil.santaFe(CamIndex)
+robot = robotutil.santaFe("FlySorter.cfg")
 
 if robot.isInitialized == False:
     print "Initialization error."
@@ -40,44 +16,27 @@ if robot.isInitialized == False:
 else:
     print "Robot initialized."
 
+robot.home()
+
+cv2.namedWindow("SantaFe")
+img = robot.captureImage()
+cv2.imshow("SantaFe", cv2.resize(img, (960,540)))
 
 key = -1
+while ( key != 27 ): # ESC to exit
+    img = robot.captureImage()
+    cv2.imshow("SantaFe", cv2.resize(img, (960,540)))
+    key = cv2.waitKey(5)
+    if  ( key == ord('h') ):
+        robot.home()
+    elif( key == ord('a') ):
+        robot.moveRel(np.array([10.0, 0.0, 0.0, 0.0, 0.0]))
+    elif( key == ord('d') ):
+        robot.moveRel(np.array([-10.0, 0.0, 0.0, 0.0, 0.0]))
+    elif( key == ord('w') ):
+        robot.moveRel(np.array([0., 10.0, 0.0, 0.0, 0.0]))
+    elif( key == ord('s') ):
+        robot.moveRel(np.array([0, -10.0, 0.0, 0.0, 0.0]))
 
-# Move to lid
-robot.moveTo( ( 425., 125., 0, 0, 0 ) )
-robot.moveTo( ( 425., 125., 69.5, 0, 0) )
-"""# Pick lid
-robot.vacuum(True)
-time.sleep(1)
-robot.vacuum(False)
-# Move lid up
-robot.moveTo( ( 425., 125., 40.0, 0, 0) )
-# Move to fly
-robot.moveTo( ( 525., 50., 40.0, 0, 0 ) )
-
-robot.moveTo( ( 525., 50., 40.0, 0, 29.75 ) )
-robot.moveTo( ( 525., 50., 40.0, 0, 29.75 ) )
-
-# Pick fly
-# (Vac is already on)
-time.sleep(1)
-
-# Move fly up
-robot.moveTo( ( 525.0, 50.0, 40.0, 0, 0 ) )
-
-# Move to chamber
-
-# Deposit fly
-
-# Deposit lid
-
-# Move out of the way
-#robot.vacuum(False)
-print "Done, waiting"
-
-#while True:
-    #time.sleep(1)
-"""
 cv2.destroyAllWindows()
 robot.release()
-# writeConfig(config)
