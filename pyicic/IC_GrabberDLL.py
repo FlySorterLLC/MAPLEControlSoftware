@@ -3,6 +3,7 @@
 
 from ctypes import *
 import os
+import platform
 
 import IC_Structures as structs
 
@@ -14,10 +15,18 @@ class IC_GrabberDLL(object):
     GrabberHandlePtr = POINTER(structs.GrabberHandle)
     
     # check path
-    old_path = os.getcwd()
-    dll_path = r'C:\Users\wlong\Documents\The Imaging Source Europe GmbH\TIS Grabber DLL\bin\win32'
-    os.chdir(dll_path)
-    dll_path = 'tisgrabber.dll'
+    old_dir = os.getcwd()
+    if platform.machine().endswith('64'):
+        dll_dir = os.path.join(os.path.expanduser('~'),
+                            'Documents\\The Imaging Source Europe GmbH\\TIS Grabber DLL\\bin\\x64')
+        dll_path = 'tisgrabber_x64.dll'
+    else:
+        dll_dir = os.path.join(os.path.expanduser('~'),
+                            'Documents\\The Imaging Source Europe GmbH\\TIS Grabber DLL\\bin\\win32')
+        dll_path = 'tisgrabber.dll'
+
+    print "DLL path:", dll_path
+    os.chdir(dll_dir)
 
     with open(dll_path) as thefile:
         pass
@@ -25,7 +34,7 @@ class IC_GrabberDLL(object):
     # win32
     _ic_grabber_dll = windll.LoadLibrary(dll_path)
 
-    os.chdir(old_path)
+    os.chdir(old_dir)
 
     #//////////////////////////////////////////////////////////////////////////
     #/*! Initialize the ICImagingControl class library. This function must be called

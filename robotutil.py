@@ -262,17 +262,20 @@ class santaFe:
         print "Homing Z axis", zNum
         # start axis moving up
         address = self.ZAddressBase+zNum
-        cmd = "{0},39,-7000\r\n".format(address)
+        cmd = "{0},39,-6900\r\n".format(address)
         self.synaptrons.sendSyncCmd(cmd)
         # keep moving up until limit switch engaged
+        print "Waiting for switch"
         zHomedBool=0
         while (zHomedBool==0):
+            print ".",
             zStatus = self.synaptrons.sendCmdGetReply(str(address)+",04,\r\n")
             zHomedBool = int(zStatus.split(',')[1])
             zHomedBool = '{0:016b}'.format(zHomedBool)
             # print 'z-axis homed?', zHomedBool[13]
             zHomedBool=int(zHomedBool[13])
-
+        print "done!"
+        
         # Temporarily set Z position to zero
         self.synaptrons.sendSyncCmd("{0},03,22\r\n".format(address)) # Stop motor
         self.synaptrons.sendSyncCmd("{0},05,0\r\n".format(address)) # Set position to zero
