@@ -20,10 +20,11 @@ cam.open()
 cam.gain.value = 10
 cam.exposure.value = -7
 
+#print cam.list_video_formats()
 #cam.set_video_format('BY8 (1920x1080)')
-cam.set_video_format('BY8 (640x480)')
+#cam.set_video_format('BY8 (640x480)')
 #cam.set_video_format('BY8 (2592x1944)')
-cam.set_frame_rate(4.00)
+#cam.set_frame_rate(4.00)
 
 cam.prepare_live()
 cam.start_live()

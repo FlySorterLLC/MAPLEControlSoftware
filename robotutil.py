@@ -265,7 +265,7 @@ class santaFe:
         cmd = "{0},39,-6900\r\n".format(address)
         self.synaptrons.sendSyncCmd(cmd)
         # keep moving up until limit switch engaged
-        print "Waiting for switch"
+        print "Waiting for switch",
         zHomedBool=0
         while (zHomedBool==0):
             print ".",
@@ -395,6 +395,7 @@ class santaFe:
         return
 
     def moveRel(self, pt):
+        print "Curr pos:", self.currentPosition
         self.moveTo(self.currentPosition + pt)
 
     def moveXYList(self, ptList):

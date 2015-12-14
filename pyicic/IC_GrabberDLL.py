@@ -3,7 +3,7 @@
 
 from ctypes import *
 import os
-import platform
+import struct
 
 import IC_Structures as structs
 
@@ -14,9 +14,11 @@ class IC_GrabberDLL(object):
     
     GrabberHandlePtr = POINTER(structs.GrabberHandle)
     
-    # check path
+    # stash old path
     old_dir = os.getcwd()
-    if platform.machine().endswith('64'):
+
+    # Check to see if we're running 32-bit or 64-bit Python
+    if ( struct.calcsize("P") * 8 ) == 64:
         dll_dir = os.path.join(os.path.expanduser('~'),
                             'Documents\\The Imaging Source Europe GmbH\\TIS Grabber DLL\\bin\\x64')
         dll_path = 'tisgrabber_x64.dll'
@@ -25,7 +27,8 @@ class IC_GrabberDLL(object):
                             'Documents\\The Imaging Source Europe GmbH\\TIS Grabber DLL\\bin\\win32')
         dll_path = 'tisgrabber.dll'
 
-    print "DLL path:", dll_path
+    print "DLL path:", dll_dir
+    print "DLL name:", dll_path
     os.chdir(dll_dir)
 
     with open(dll_path) as thefile:
