@@ -129,6 +129,13 @@ class santaFe:
     currentPosition = np.array([0.0, 0.0, 0.0, 0.0, 0.0])
     currentRotation = np.array([0.0, 0.0])
 
+    # Initialize these variables to zero -- they should be read in by readConfig
+    Z0Offset = np.array([0.0, 0.0, 0.0, 0.0, 0.0])
+    Z2Offset = np.array([0.0, 0.0, 0.0, 0.0, 0.0])
+    maxExtents = np.array([0.0, 0.0, 0.0, 0.0, 0.0])
+    ZAddressBase = 54
+    OutputDir = ""
+
     isInitialized = False
 
     # There are 6 encoder counts per revolution, gear ratio of motor is 29.86:1,
@@ -136,26 +143,31 @@ class santaFe:
     ZCountsPerMM = 6.0*29.86*10.4/25.4
 
     # Configuration defaults
-    configDefaults = {'WorkspaceXSize': '1000',
+    configDefaults = {'ZAddressBase': '54',
+                      'WorkspaceXSize': '1000',
                       'WorkspaceYSize': '270',
-                      'MaxZ1Depth': '68',
-                      'MaxZ2Depth': '50',
-                      'MaxZ3Depth': '55',
-                      'ZAddressBase': '54',
+                      'MaxZ0Depth': '68',
+                      'MaxZ1Depth': '50',
+                      'MaxZ2Depth': '55',
                       'OutputDir': 'Photos',
+                      'Z0OffsetX': '-40',
+                      'Z0OffsetY': '0',
+                      'Z0OffsetZ': '23',
+                      'Z2OffsetX': '40',
+                      'Z2OffsetY': '0',
+                      'Z2OffsetZ': '8'
                       }
     
     def __init__(self, robotConfigFile):
-        print "Reading config file..."
+        print "Reading config file...",
         self.config = ConfigParser.RawConfigParser(self.configDefaults)
         self.readConfig(robotConfigFile)
-
+        print "done."
         
-        print "Initializing serial connections..."
+        print "Initializing serial connections:"
         self.printrboard = None
         self.synaptrons = None
 
-        
         # Search serial ports, look for motor control board and printrboard
         portList = availablePorts()
         print "Port list:", portList
@@ -186,12 +198,15 @@ class santaFe:
                 self.synaptrons.close()
             return
 
+        print "Initializing camera...",
         self.cam = cameraInit()
         if self.cam == None:
             print "Camera init fail."
             self.synaptrons.close()
             self.printrboard.close()
             return
+
+        print "done."
        
         self.currentPosition = self.getCurrentPosition()
         self.isInitialized = True
@@ -215,21 +230,15 @@ class santaFe:
     def readConfig(self, configFile):
         self.config.read(configFile)
         self.OutputDir = self.config.get('DEFAULT', 'OutputDir')
-        self.WorkspaceSize = np.array( [ float(self.config.get('DEFAULT', 'WorkspaceXSize')), float(self.config.get('DEFAULT', 'WorkspaceYSize')) ] )
+        self.maxExtents = np.array( [ float(self.config.get('DEFAULT', 'WorkspaceXSize')), float(self.config.get('DEFAULT', 'WorkspaceYSize')),
+                                      float(self.config.get('DEFAULT', 'MaxZ0Depth')),
+                                      float(self.config.get('DEFAULT', 'MaxZ1Depth')),
+                                      float(self.config.get('DEFAULT', 'MaxZ2Depth')) ] )
+        self.Z0Offset = np.array( [ float(self.config.get('DEFAULT', 'Z0OffsetX')), float(self.config.get('DEFAULT', 'Z0OffsetY')),
+                                      float(self.config.get('DEFAULT', 'Z0OffsetZ')), 0.0, 0.0 ] )
+        self.Z2Offset = np.array( [ float(self.config.get('DEFAULT', 'Z2OffsetX')), float(self.config.get('DEFAULT', 'Z2OffsetY')),
+                                      0.0, 0.0, float(self.config.get('DEFAULT', 'Z2OffsetZ')) ] )
         self.ZAddressBase = int(self.config.get('DEFAULT', 'ZAddressBase'))
-##        self.MaxZDepth
-##                      'MaxZ1Depth': '50',
-##                      'MaxZ2Depth': '60',
-##                      'MaxZ3Depth': '40',
-##                      'ZBaseAddress': '54',
-        return
-        
-    # Write out the config file after transferring values from vars
-    def writeConfig(self, configFile):
-##        self.config.set('DEFAULT', 'CamIndex', CamIndex)
-##        self.config.set('DEFAULT', 'OutputDir', OutputDir)
-##        with open('FlySorter.cfg', 'wb') as configfile:
-##            self.config.write(configfile)
         return
         
     def release(self):
@@ -323,7 +332,10 @@ class santaFe:
             print 'Error: incorrect coordinate string. Dropping moveXY instruction'
             return
 
-        #start x and y on their way
+        if ( self.isPtInBounds((pt[0], pt[1], 0., 0., 0.)) == False ):
+            print 'Error: point out of bounds (less than zero, greater than maxExtents)'
+            return
+
         cmd = "G01 X{0[0]} Y{0[1]}\n".format(pt)
         self.printrboard.sendSyncCmd(cmd)
         self.currentPosition[0] = pt[0]
@@ -333,6 +345,10 @@ class santaFe:
     def moveZ(self, pt):
         if (len(pt) != 5):
             print 'Error: incorrect coordinate string. Dropping moveZ instruction'
+            return
+
+        if ( self.isPtInBounds(pt) == False ):
+            print 'Error: point out of bounds (less than zero, greater than maxExtents)'
             return
         
         # set z precision in mm
@@ -364,6 +380,11 @@ class santaFe:
         if (len(pt) != 5):
             print 'Error: incorrect coordinate string. Dropping moveTo instruction'
             return
+
+        if ( self.isPtInBounds(pt) == False ):
+            print 'Error: point out of bounds (less than zero, greater than maxExtents)'
+            return
+              
         
         # set z precision in mm
         zErrorBand = 0.1
@@ -403,6 +424,21 @@ class santaFe:
         for pt in ptList:
             self.moveXY(pt)
         return
+
+    def isPtInBounds(self, pt):
+        if ( len(pt) != 5 ):
+            print 'Error: incorrect coordinate length.'
+            return False
+
+        if (  ( pt[0] > self.maxExtents[0] ) or
+              ( pt[1] > self.maxExtents[1] ) or
+              ( pt[2] > self.maxExtents[2] ) or
+              ( pt[3] > self.maxExtents[3] ) or
+              ( pt[4] > self.maxExtents[4] ) or
+              ( pt[0] < 0.0 ) or ( pt[1] < 0.0 ) or ( pt[2] < 0.0 ) or ( pt[3] < 0.0 ) or ( pt[4] < 0.0 ) ):
+            return False
+        else:
+            return True
 
     def dwell(self, t):
         cmd = "G04 P{0}\n".format(t)
