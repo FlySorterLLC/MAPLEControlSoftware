@@ -9,18 +9,22 @@ import robotutil
 
 
 imgSize = ( 864, 648 )
-crosshairPt0 = ( 422, 324 )
-crosshairPt1 = ( 442, 324 )
-crosshairPt2 = ( 432, 314 )
-crosshairPt3 = ( 432, 334 )
+crosshairPts = (( 422, 324 ), ( 442, 324 ), ( 432, 314 ), ( 432, 334 ))
 
 # Print a string on an image from the current position
 def printPosition(robot, img):
-    global imgSize
+    global imgSize, crosshairPts
     currentPosition = robot.getCurrentPosition()
     posStr = "X: {0[0]:.1f} Y:{0[1]:.1f} Z0: {0[2]:.2f} Z1: {0[3]:.2f} Z2: {0[4]:.2f}".format(currentPosition)
+    textSize, baseline = cv2.getTextSize(posStr, cv2.FONT_HERSHEY_PLAIN, 1, 1)
+    textSize = (textSize[0]+20, textSize[1]+20)
+    cv2.rectangle(img, (15, imgSize[1]-20), (15+textSize[0], imgSize[1]-20-textSize[1]), (25, 25, 25), -1) 
     cv2.putText(img, posStr, (25, imgSize[1]-30), cv2.FONT_HERSHEY_PLAIN, 1, (255, 255, 255))
-    cv2.putText(img, "? for help", (25, 25), cv2.FONT_HERSHEY_PLAIN, 1, (255, 255,255))
+    cv2.putText(img, "? for help", (25, 30), cv2.FONT_HERSHEY_PLAIN, 2, (255, 255,255), 2)
+    cv2.line(img, crosshairPts[0], crosshairPts[1], (0,0,0), 3)
+    cv2.line(img, crosshairPts[2], crosshairPts[3], (0,0,0), 3)
+    cv2.line(img, crosshairPts[0], crosshairPts[1], (255, 255, 255), 1)
+    cv2.line(img, crosshairPts[2], crosshairPts[3], (255, 255, 255), 1)
     
 # And pass in the ZAxisBaseAddress here
 robot = robotutil.santaFe("FlySorter.cfg")
@@ -38,14 +42,16 @@ robot.light(True)
 cv2.namedWindow("SantaFe")
 
 key = -1
+startTime = time.time()
 while ( key != 27 ): # ESC to exit
-    # Capture image, resize for the screen, and draw crosshairs
-    img = cv2.resize(robot.captureImage(), imgSize)
-    cv2.line(img, crosshairPt0, crosshairPt1, (255, 255, 255), 1)
-    cv2.line(img, crosshairPt2, crosshairPt3, (255, 255, 255), 1)
-    printPosition(robot, img)
-    # Show image
-    cv2.imshow("SantaFe", img)
+    # Update the image once a second
+    if ( time.time() - startTime > 1. ):
+        # Capture image, resize for the screen, and draw crosshairs
+        img = cv2.resize(robot.captureImage(), imgSize)
+        printPosition(robot, img)
+        # Show image
+        cv2.imshow("SantaFe", img)
+        startTime = time.time()
     key = cv2.waitKey(5)
     if  ( key == ord('?') ):
         # Print help message
@@ -53,6 +59,7 @@ while ( key != 27 ): # ESC to exit
     ESC         - exit
     h           - home robot
     g           - go to coordinates
+    p           - print coordinates (in this window)
 
 Move +/- 10mm:
     a/d         - X
@@ -78,6 +85,8 @@ Modifier keys:
                 newPosition[i] = float(coord)
                 i = i+1
             robot.moveTo(newPosition)
+    elif( key == ord('p') ):
+        print robot.getCurrentPosition()
     elif( key == ord('a') ):
         robot.moveRel(np.array([10.0, 0.0, 0.0, 0.0, 0.0]))
     elif( key == ord('d') ):
