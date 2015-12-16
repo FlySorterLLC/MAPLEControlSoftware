@@ -5,12 +5,11 @@
 ## FlyPlate (96 well plate) class file
 
 import numpy as np
-import robotutil
 
 class FlyPlate:
 
-    ZClearanceHeight = 50
-    ZHeight = 45
+    Z2ClearanceHeight = 22.
+    Z2Height = 30.
     wellSpacing = 9.
 
     # startWellPoint is well A1 (upper left), endWellPoint is well H12 (lower right)
@@ -18,21 +17,28 @@ class FlyPlate:
 
         self.startWellPoint = startWellPoint
 
-        # First, check the length of endWellPoint-startWellPoint for sanity
-        # Should be wellSpacing*sqrt(7*7 + 11*11) = 9*sqrt(170) = ~117.34
-        l = np.linalg.norm(endWellPoint-startWellPoint)
-        if ( np.absolute( 1 - l / (9.*np.sqrt(170.)) ) > 0.01 ):
-            print "FlyPlate warning: check coordinates. Length should be", (9.*np.sqrt(170.)), "but is", l
-
         # The basis vectors, if the long side of the plate
         # was aligned to the X axis
         self.majorBasis = np.array([9., 0.])
         self.minorBasis = np.array([0., -9.])
 
+        # First, check the length of endWellPoint-startWellPoint
+        # against the nominal distance for sanity
+        l = np.linalg.norm(endWellPoint-startWellPoint)
+        nominalVect = 11*self.majorBasis + 7*self.minorBasis
+        nominalDist = np.linalg.norm( nominalVect)
+        if ( np.absolute( 1 - l / (nominalDist) ) > 0.01 ):
+            print "FlyPlate warning: check coordinates. Length should be", (9.*np.sqrt(170.)), "but is", l
+
 
         # Now calculate the angle between the actual coords and the axis-aligned coords
-        cosAngle = np.dot( (endWellPoint-startWellPoint), (11.*self.majorBasis+7.*self.minorBasis) ) / l / (9.*np.sqrt(170.))
-        sinAngle = np.cross( (endWellPoint-startWellPoint), (11.*self.majorBasis+7.*self.minorBasis) ) / l / (9.*np.sqrt(170.))
+        # reminder: a * b = |a| |b| cos(t)
+        #     and   a x b = |a| |b| sin(t)
+        #
+        # We solve for sin(t) and cos(t)
+        cosAngle = np.dot(   (endWellPoint-startWellPoint), nominalVect ) / ( l * nominalDist )
+        sinAngle = -np.cross( (endWellPoint-startWellPoint), nominalVect ) / ( l * nominalDist )
+        #print "cos(t) =", cosAngle, "and sin(t) =", sinAngle
 
         # Construct the rotation matrix                               
         rotMat = np.array( [ [cosAngle, -sinAngle], [ sinAngle, cosAngle] ])
@@ -45,7 +51,12 @@ class FlyPlate:
 
     # Note that this index (i) is zero based.
     # So getWell(0) returns coords for well A1
+    # getWell(1) returns coords for well A2
+    # ...
     # and getWell(95) returns coords for well H12
     def getWell(self, i):
-        coords = self.startWellPoint + (int(i/8))*self.majorBasis + (i%8)*self.minorBasis
+        if ( i < 0 or i > 95 ):
+            print "FlyPlate error: index out of bounds (", i, ")."
+            return
+        coords = self.startWellPoint + (int(i/12))*self.minorBasis + (i%12)*self.majorBasis
         return coords
