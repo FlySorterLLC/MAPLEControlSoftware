@@ -142,6 +142,8 @@ class santaFe:
     # leadscrew pitch is 1/10.4" and there are 25.4 mm/in
     ZCountsPerMM = 6.0*29.86*10.4/25.4
 
+    travelSpeed = 8000
+
     # Configuration defaults
     configDefaults = {'ZAddressBase': '54',
                       'WorkspaceXSize': '1000',
@@ -259,7 +261,7 @@ class santaFe:
         # Then home Y, then X (in that order, b/c of CoreXY configuration)
         self.printrboard.sendSyncCmd("G28 Y\n")
         self.printrboard.sendSyncCmd("G28 X\n")
-        self.printrboard.sendSyncCmd("G01 F10000\n")
+        self.printrboard.sendSyncCmd("G01 F{0}\n".format(self.travelSpeed))
         self.currentPosition = np.array([0., 0., 0., 0., 0.])
         return
         
@@ -365,9 +367,12 @@ class santaFe:
             #check to see if all z-axes have arrived
             for i in range(0,3):
                 zTemp = self.synaptrons.sendCmdGetReply(str(baseZAddr+i)+",05,\r\n")
-                zTemp = int(zTemp.split(',')[1])/self.ZCountsPerMM
-                zBoolArray[2+i] = int(abs(zTemp - pt[2+i]) < zErrorBand)
-                #print 'i is: ', i,' zstring is: ', zTemp, ' zBoolArray is: ', zBoolArray
+                if ( len ( zTemp.split(',') ) != 2 ):
+                    zBoolArray[2+i] = 0
+                    print 'i is: ', i,' zstring is: ', zTemp, ' zBoolArray is: ', zBoolArray
+                else:
+                    zTemp = int(zTemp.split(',')[1])/self.ZCountsPerMM
+                    zBoolArray[2+i] = int(abs(zTemp - pt[2+i]) < zErrorBand)
   
         print 'Moved to Z coordinates ', pt
         self.currentPosition[2] = pt[0]
@@ -386,6 +391,8 @@ class santaFe:
             return
               
         
+        print 'Current coordinates ', self.currentPosition
+
         # set z precision in mm
         zErrorBand = 0.1
 
@@ -405,9 +412,12 @@ class santaFe:
             #check to see if all z-axes have arrived
             for i in range(0,3):
                 zTemp = self.synaptrons.sendCmdGetReply(str(baseZAddr+i)+",05,\r\n")
-                zTemp = int(zTemp.split(',')[1])/self.ZCountsPerMM
-                zBoolArray[2+i] = int(abs(zTemp - pt[2+i]) < zErrorBand)
-                #print 'i is: ', i,' zstring is: ', zTemp, ' zBoolArray is: ', zBoolArray
+                if ( len ( zTemp.split(',') ) != 2 ):
+                    zBoolArray[2+i] = 0
+                    print 'i is: ', i,' zstring is: ', zTemp, ' zBoolArray is: ', zBoolArray
+                else:
+                    zTemp = int(zTemp.split(',')[1])/self.ZCountsPerMM
+                    zBoolArray[2+i] = int(abs(zTemp - pt[2+i]) < zErrorBand)
   
         print 'Moved to coordinates ', pt
         self.currentPosition[2] = pt[2]
@@ -416,7 +426,7 @@ class santaFe:
         return
 
     def moveRel(self, pt):
-        print "Curr pos:", self.currentPosition
+        #print "Curr pos:", self.currentPosition
         self.moveTo(self.currentPosition + pt)
 
     def moveXYList(self, ptList):
