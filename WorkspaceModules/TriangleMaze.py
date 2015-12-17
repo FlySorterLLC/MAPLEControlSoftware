@@ -71,3 +71,6 @@ class TriangleMaze:
             coords = self.startMazePoint + self.invertedOffset + int( (i-1)/(self.mazeCols-1) ) * self.minorBasis + ( (i-1)%(self.mazeCols-1))*self.majorBasis
 
         return coords
+
+    def getNumMazes(self):
+        return self.mazeRows*(2*self.mazeCols-1)

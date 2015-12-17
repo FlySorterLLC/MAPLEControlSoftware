@@ -77,12 +77,15 @@ robot.light(True)
 
 # Now loop through the imaging points
 for imgPt in Workspace2.Workspace2['pad1'].imagePoints:
+    if (mazeCounter > Workspace2.Workspace2['maze1'].getNumMazes()):
+        break
+    print "Image point:", imgPt
     robot.moveXY(imgPt)
     robot.dwell(10)
     img = robot.captureImage()
     robot.dwell(100)
     flyPoint = robot.findFly(img)
-    if ( flyPoint is not None ):
+    while (( flyPoint is not None ) and (mazeCounter <= Workspace2.Workspace2['maze1'].getNumMazes()) ):
         # flyPoint is actually an offset from the current position (imgPt)
         print "Found fly at:", flyPoint+imgPt
         ##cv2.imshow("flypad", cv2.resize(img, ( 864, 648 )) )
@@ -105,9 +108,9 @@ for imgPt in Workspace2.Workspace2['pad1'].imagePoints:
         robot.moveXY(mazePt-xyOffset)
         robot.moveXY(mazePt)
         robot.dwell(1)
-        robot.moveZ(ZLid)
         robot.smallPartManipVenturi(True)
-        time.sleep(0.5)
+        robot.moveZ(ZLid)
+        time.sleep(1)
         robot.dwell(1)
         robot.moveZ(ZImagePad)
 
@@ -118,7 +121,7 @@ for imgPt in Workspace2.Workspace2['pad1'].imagePoints:
         robot.dwell(1)
         robot.moveZ(ZDepositFly)
         robot.flyManipAir(True)
-        time.sleep(0.1)
+        time.sleep(0.3)
         robot.flyManipVenturi(False)
         robot.flyManipAir(False)
         robot.moveZ(ZImagePad)
@@ -134,14 +137,14 @@ for imgPt in Workspace2.Workspace2['pad1'].imagePoints:
         robot.smallPartManipAir(False)
         robot.smallPartManipVenturi(False)
         
-
         mazeCounter += 1
-##        # Take another image in case there are more flies in this region
-##        robot.moveZ(ZClear)
-##       robot.moveXY(imgPt)
-##        img = robot.captureImage()
-##        cv2.imshow("flypad", cv2.resize(img, ( 864, 648 )) )
-##        flyPoint = robot.findFly(img)
+        # Take another image in case there are more flies in this region
+        robot.moveZ(ZImagePad)
+        print "Image point:", imgPt
+        robot.moveXY(imgPt)
+        robot.dwell(10)
+        img = robot.captureImage()
+        flyPoint = robot.findFly(img)
 
 
 cv2.destroyAllWindows()
