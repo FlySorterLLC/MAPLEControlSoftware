@@ -39,15 +39,17 @@ robot.light(True)
 
 cv2.namedWindow("SantaFe")
 
+imageMode = True
 key = -1
 img = cv2.resize(robot.captureImage(), imgSize)
 startTime = time.time()
 while ( key != 27 ): # ESC to exit
-    # Update the image once a second
-    if ( time.time() - startTime > 1. ):
-        # Capture image, resize for the screen, and draw crosshairs
-        img = cv2.resize(robot.captureImage(), imgSize)
-        startTime = time.time()
+    if ( imageMode == True):
+        # Update the image once a second
+        if ( time.time() - startTime > 1. ):
+            # Capture image, resize for the screen, and draw crosshairs
+            img = cv2.resize(robot.captureImage(), imgSize)
+            startTime = time.time()
     # Update the position and show image every time, though
     printPosition(robot, img)
     cv2.imshow("SantaFe", img)
@@ -59,6 +61,8 @@ while ( key != 27 ): # ESC to exit
     h           - home robot
     g           - go to coordinates
     p           - print coordinates (in this window)
+    SPACE       - update the image
+    m           - toggle between capturing images continuously and not
 
 Move +/- 10mm:
     a/d         - X
@@ -86,6 +90,10 @@ Modifier keys:
             robot.moveTo(newPosition)
     elif( key == ord('p') ):
         print robot.getCurrentPosition()
+    elif( key == ord('m') ):
+        imageMode = not imageMode
+    elif( key == ord(' ') ):
+        img = cv2.resize(robot.captureImage(), imgSize)
     elif( key == ord('a') ):
         robot.moveRel(np.array([10.0, 0.0, 0.0, 0.0, 0.0]))
     elif( key == ord('d') ):
