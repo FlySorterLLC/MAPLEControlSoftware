@@ -8,8 +8,9 @@ import numpy as np
 
 class FlyPlate:
 
-    Z2ClearanceHeight = 22.
-    Z2Height = 30.
+    MaxThickness = 19.
+    Z0WorkingThickness = 16.
+    
     wellSpacing = 9.
 
     # startWellPoint is well A1 (upper left), endWellPoint is well H12 (lower right)

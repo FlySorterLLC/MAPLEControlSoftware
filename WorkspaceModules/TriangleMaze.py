@@ -8,13 +8,17 @@ import numpy as np
 
 class TriangleMaze:
 
-    Z2ClearanceHeight = 22.
-    Z2Height = 30.
-    horizontalMazeSpacing = 36.274 #mm
-    verticalMazeSpacing = 36.466 #mm
+    MaxThickness = 7.5
+    Z0WorkingThickness = 7.5
+    Z1WorkingThickness = 7.5
+    Z2WorkingThickness = 4.5
+    
+    # These are a little questionable
+    horizontalMazeSpacing = 36.374 #mm
+    verticalMazeSpacing = 35.78 #mm
     verticalShift = 14.47 #mm
-    mazeRows = 8
-    mazeCols = 8
+    mazeRows = 4
+    mazeCols = 4
 
     # maze1 is the coordinates of the center of maze number 1 (upper left, sorta)
     # maze64 is the coordinates of the center of maze number 64 (bottom right)
@@ -54,15 +58,15 @@ class TriangleMaze:
 
     # Note that this index (i) is one based and matches the numbering on the mazes.
     def getMaze(self, i):
-        if ( i < 1 or i > 120 ):
+        if ( i < 1 or i > (self.mazeRows*(2*self.mazeCols-1)) ):
             print "Maze error: index out of bounds (", i, ")."
             return
 
-        # Math is a little different for 1-64 and 65-120
+        # Math is a little different for the upright and inverted mazes
         if ( i <= (self.mazeRows*self.mazeCols) ):
             coords = self.startMazePoint + int((i-1)/self.mazeCols)*self.minorBasis + ((i-1)%self.mazeCols)*self.majorBasis
         else:
-            # Adjust the counter, so 65 is now 1 (makes math easier)
+            # Adjust the counter, so the first inverted maze is now 1 (makes math easier)
             i -= (self.mazeRows*self.mazeCols)
             coords = self.startMazePoint + self.invertedOffset + int( (i-1)/(self.mazeCols-1) ) * self.minorBasis + ( (i-1)%(self.mazeCols-1))*self.majorBasis
 

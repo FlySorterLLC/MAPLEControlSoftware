@@ -143,11 +143,13 @@ class santaFe:
     ZCountsPerMM = 6.0*29.86*10.4/25.4
 
     travelSpeed = 8000
+    acceleration = 200
 
     # Configuration defaults
     configDefaults = {'ZAddressBase': '54',
                       'WorkspaceXSize': '1000',
                       'WorkspaceYSize': '270',
+                      'Z1FloorHeight': '40.0',
                       'MaxZ0Depth': '68',
                       'MaxZ1Depth': '50',
                       'MaxZ2Depth': '55',
@@ -157,7 +159,9 @@ class santaFe:
                       'Z0OffsetZ': '23',
                       'Z2OffsetX': '40',
                       'Z2OffsetY': '0',
-                      'Z2OffsetZ': '8'
+                      'Z2OffsetZ': '8',
+                      'HFOV': '14.5',
+                      'VFOV': '11.25'
                       }
     
     def __init__(self, robotConfigFile):
@@ -212,6 +216,7 @@ class santaFe:
        
         self.currentPosition = self.getCurrentPosition()
         self.isInitialized = True
+        print "Robot initialized."
         return
 
     def captureImage(self):
@@ -232,6 +237,7 @@ class santaFe:
     def readConfig(self, configFile):
         self.config.read(configFile)
         self.OutputDir = self.config.get('DEFAULT', 'OutputDir')
+        self.Z1FloorHeight = float(self.config.get('DEFAULT', 'Z1FloorHeight'))
         self.maxExtents = np.array( [ float(self.config.get('DEFAULT', 'WorkspaceXSize')), float(self.config.get('DEFAULT', 'WorkspaceYSize')),
                                       float(self.config.get('DEFAULT', 'MaxZ0Depth')),
                                       float(self.config.get('DEFAULT', 'MaxZ1Depth')),
@@ -241,6 +247,7 @@ class santaFe:
         self.Z2Offset = np.array( [ float(self.config.get('DEFAULT', 'Z2OffsetX')), float(self.config.get('DEFAULT', 'Z2OffsetY')),
                                       0.0, 0.0, float(self.config.get('DEFAULT', 'Z2OffsetZ')) ] )
         self.ZAddressBase = int(self.config.get('DEFAULT', 'ZAddressBase'))
+        self.FOV = np.array([ float(self.config.get('DEFAULT', 'HFOV')), float(self.config.get('DEFAULT', 'VFOV')) ])
         return
         
     def release(self):
@@ -261,6 +268,7 @@ class santaFe:
         # Then home Y, then X (in that order, b/c of CoreXY configuration)
         self.printrboard.sendSyncCmd("G28 Y\n")
         self.printrboard.sendSyncCmd("G28 X\n")
+        self.printrboard.sendSyncCmd("M204 S{0}\n".format(self.acceleration))
         self.printrboard.sendSyncCmd("G01 F{0}\n".format(self.travelSpeed))
         self.currentPosition = np.array([0., 0., 0., 0., 0.])
         return
@@ -374,7 +382,7 @@ class santaFe:
                     zTemp = int(zTemp.split(',')[1])/self.ZCountsPerMM
                     zBoolArray[2+i] = int(abs(zTemp - pt[2+i]) < zErrorBand)
   
-        print 'Moved to Z coordinates ', pt
+        #print 'Moved to Z coordinates ', pt
         self.currentPosition[2] = pt[0]
         self.currentPosition[3] = pt[1]
         self.currentPosition[4] = pt[2]
@@ -582,6 +590,32 @@ class santaFe:
         pt2[4]+=-10
         self.moveTo(pt2)
         return
+
+    def findFly(self, image):
+        # Cribbed from Will's imgprocess script
+        # Convert BGR to HSV
+        h, s, v = cv2.split(cv2.cvtColor(image, cv2.COLOR_BGR2HSV))
+        # Now threshold in the value channel
+        r, mask = cv2.threshold(255-v, 100, 255, cv2.THRESH_BINARY)
+        # Find contours
+        contours, h = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        for c in contours:
+            mmnts = cv2.moments(c)
+            if ( 20000 < mmnts['m00'] < 200000 ):
+                # Center of contour is m10/m00, m01/m00
+                # We want transform from pixels to mm, using self.FOV
+                # Find the shape of the image
+                (pxHeight, pxWidth) = mask.shape
+                imgCoords = np.array([ int(mmnts['m10'] / mmnts['m00'] ), int( mmnts['m01'] / mmnts['m00']) ], dtype=np.int16)
+                cv2.line(image, tuple(imgCoords - np.array([ 20, 0])), tuple(imgCoords + np.array([ 20, 0])), (0,0,0), 5)
+                cv2.line(image, tuple(imgCoords - np.array([ 0, 20])), tuple(imgCoords + np.array([ 0, 20])), (0,0,0), 5)
+                cv2.line(image, tuple(imgCoords - np.array([ 20, 0])), tuple(imgCoords + np.array([ 20, 0])), (255,255,255), 3)
+                cv2.line(image, tuple(imgCoords - np.array([ 0, 20])), tuple(imgCoords + np.array([ 0, 20])), (255,255,255), 3)
+                coords = np.array([ (mmnts['m10'] / mmnts['m00'] - pxWidth/2.)*self.FOV[0]/pxWidth,
+                                    (mmnts['m01'] / mmnts['m00'] - pxHeight/2.)*self.FOV[1]/pxHeight ])
+                
+                return coords
+        return None
 
 # Set up close-up camera
 def cameraInit():

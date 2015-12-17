@@ -9,8 +9,7 @@ import numpy as np
 import time
 import robotutil
 
-import Workspace1
-
+import Workspace2
 
 #### BEGIN PGM ####
 robot = robotutil.santaFe("FlySorter.cfg")
@@ -21,36 +20,130 @@ if robot.isInitialized == False:
 else:
     print "Robot initialized."
 
-robot.home()
+#robot.home()
 
-##pointList = np.array( [ [100, 100],
-##                        [100, 101],
-##                        [100, 102],
-##                        [100, 103],
-##                        [100, 104],
-##                        [100, 105],
-##                        [101, 105],
-##                        [102, 105],
-##                        [103, 105],
-##                        [104, 105],
-##                        [105, 105],
-##                        [104, 104],
-##                        [103, 103],
-##                        [102, 102],
-##                        [101, 101],
-##                        [100, 100]] )
-##robot.moveXYList(pointList)
+# Calculate the points where we need to take images to find flies
+Workspace2.Workspace2['pad1'].calculateRegionCoords(robot.FOV)
 
-dipMove = np.array([0., 0., 0., 0., Workspace1.Workspace1['plate1'].Z2Height - Workspace1.Workspace1['plate1'].Z2ClearanceHeight ])
-wellList = (0, 20, 95)
-for well in wellList:
-    wellPtXY = Workspace1.Workspace1['plate1'].getWell(well) + robot.Z2Offset[0:2]
-    wellPtFull = np.append(wellPtXY, [ 2, 2, Workspace1.Workspace1['plate1'].Z2ClearanceHeight ] )
-    print wellPtFull
-    robot.moveTo(wellPtFull)
-    robot.moveRel(dipMove)
-    time.sleep(4)
-    robot.moveRel(-dipMove)
+# Construct some helpful points
 
+xyOffset = np.array([-5., -5.])
+
+# 
+padFocusHeight = robot.Z1FloorHeight - \
+                 Workspace2.Workspace2['baseThickness'] - \
+                 Workspace2.Workspace2['pad1'].Z1WorkingThickness
+padFlyPickHeight = robot.Z1FloorHeight - \
+                   Workspace2.Workspace2['baseThickness'] - \
+                   Workspace2.Workspace2['pad1'].Z2WorkingThickness + \
+                   robot.Z2Offset[4]
+mazeLidHeight = robot.Z1FloorHeight - \
+                Workspace2.Workspace2['baseThickness'] - \
+                Workspace2.Workspace2['maze1'].Z0WorkingThickness + \
+                robot.Z0Offset[2]
+mazeFlyHeight = robot.Z1FloorHeight - \
+                Workspace2.Workspace2['baseThickness'] - \
+                Workspace2.Workspace2['maze1'].Z2WorkingThickness + \
+                robot.Z2Offset[4]
+
+print "Camera focused on pad height:", padFocusHeight
+print "Fly pick from pad height:", padFlyPickHeight
+print "Lid pick from maze height:", mazeLidHeight
+print "Fly dropoff at maze height:", mazeFlyHeight
+
+
+#
+ZImagePad = np.array([0., 0., mazeLidHeight-25., padFocusHeight, padFlyPickHeight-10.])
+ZGrabFly = np.copy(ZImagePad)
+ZDepositFly = np.copy(ZImagePad)
+ZLid = np.copy(ZImagePad)
+
+ZGrabFly[4] = padFlyPickHeight
+ZDepositFly[4] = mazeFlyHeight
+ZLid[2] = mazeLidHeight
+
+print "Image on pad Z coords:", ZImagePad
+print "Pickup fly Z coords:", ZGrabFly
+print "Deposite fly Z coords:", ZDepositFly
+print "Lid Z coords:", ZLid
+
+
+print "--------------------------"
+
+robot.moveZ(ZImagePad)
+
+mazeCounter = 1
+robot.light(True)
+
+# Now loop through the imaging points
+for imgPt in Workspace2.Workspace2['pad1'].imagePoints:
+    robot.moveXY(imgPt)
+    robot.dwell(10)
+    img = robot.captureImage()
+    robot.dwell(100)
+    flyPoint = robot.findFly(img)
+    if ( flyPoint is not None ):
+        # flyPoint is actually an offset from the current position (imgPt)
+        print "Found fly at:", flyPoint+imgPt
+        ##cv2.imshow("flypad", cv2.resize(img, ( 864, 648 )) )
+        ##time.sleep(2)
+        # Grab fly
+        flyXYPoint = imgPt + flyPoint + robot.Z2Offset[0:2]
+        robot.moveXY(flyXYPoint-xyOffset)
+        robot.moveXY(flyXYPoint)        
+        robot.dwell(1)
+        robot.moveZ(ZGrabFly)
+        robot.flyManipVenturi(True)
+        time.sleep(0.5)
+        robot.dwell(1)
+        robot.moveZ(ZImagePad)
+
+        # Move it to the next available maze
+        # First, remove the lid
+        
+        mazePt = Workspace2.Workspace2['maze1'].getMaze(mazeCounter) + robot.Z0Offset[0:2]
+        robot.moveXY(mazePt-xyOffset)
+        robot.moveXY(mazePt)
+        robot.dwell(1)
+        robot.moveZ(ZLid)
+        robot.smallPartManipVenturi(True)
+        time.sleep(0.5)
+        robot.dwell(1)
+        robot.moveZ(ZImagePad)
+
+        # Now deposit the fly
+        mazePt = Workspace2.Workspace2['maze1'].getMaze(mazeCounter) + robot.Z2Offset[0:2]
+        robot.moveXY(mazePt-xyOffset)
+        robot.moveXY(mazePt)
+        robot.dwell(1)
+        robot.moveZ(ZDepositFly)
+        robot.flyManipAir(True)
+        time.sleep(0.1)
+        robot.flyManipVenturi(False)
+        robot.flyManipAir(False)
+        robot.moveZ(ZImagePad)
+
+        # Now replace the lid
+        mazePt = Workspace2.Workspace2['maze1'].getMaze(mazeCounter) + robot.Z0Offset[0:2]
+        robot.moveXY(mazePt-xyOffset)
+        robot.moveXY(mazePt)
+        robot.dwell(1)
+        robot.moveZ(ZLid)
+        robot.smallPartManipAir(True)
+        robot.moveZ(ZImagePad)
+        robot.smallPartManipAir(False)
+        robot.smallPartManipVenturi(False)
+        
+
+        mazeCounter += 1
+##        # Take another image in case there are more flies in this region
+##        robot.moveZ(ZClear)
+##       robot.moveXY(imgPt)
+##        img = robot.captureImage()
+##        cv2.imshow("flypad", cv2.resize(img, ( 864, 648 )) )
+##        flyPoint = robot.findFly(img)
+
+
+cv2.destroyAllWindows()
 robot.release()
 
