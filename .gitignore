@@ -1,3 +1,5 @@
 *.pyc
 *.bmp
 photos/
+log/
+SantaFe.cfg

@@ -12,7 +12,7 @@ import robotutil
 import Workspace2
 
 #### BEGIN PGM ####
-robot = robotutil.santaFe("FlySorter.cfg")
+robot = robotutil.santaFe("SantaFe.cfg")
 
 if robot.isInitialized == False:
     print "Initialization error."
@@ -70,6 +70,8 @@ print "Lid Z coords:", ZLid
 
 print "--------------------------"
 
+#time.sleep(10)
+
 robot.moveZ(ZImagePad)
 
 mazeCounter = 1
@@ -100,6 +102,9 @@ for imgPt in Workspace2.Workspace2['pad1'].imagePoints:
         time.sleep(0.5)
         robot.dwell(1)
         robot.moveZ(ZImagePad)
+
+        # Should take another image and check
+        # to see that we picked up the fly...
 
         # Move it to the next available maze
         # First, remove the lid

@@ -25,7 +25,7 @@ def printPosition(robot, img):
     cv2.line(img, crosshairPts[2], crosshairPts[3], (255, 255, 255), 1)
     
 # And pass in the ZAxisBaseAddress here
-robot = robotutil.santaFe("FlySorter.cfg")
+robot = robotutil.santaFe("SantaFe.cfg")
 
 if robot.isInitialized == False:
     print "Initialization error."
