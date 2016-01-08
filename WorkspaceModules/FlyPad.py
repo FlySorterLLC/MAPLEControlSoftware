@@ -9,10 +9,10 @@ import cv2
 
 class FlyPad:
 
-    MaxThickness = 20.
-    Z0WorkingThickness = 18.8
-    Z1WorkingThickness = 18.8
-    Z2WorkingThickness = 18.8
+    MaxThickness = 15.3
+    Z0WorkingThickness = 15.3
+    Z1WorkingThickness = 15.3
+    Z2WorkingThickness = 15.3
 
     # upperLeft is coordinate of upper left corner,
     # lowerRight is coord of lower right.

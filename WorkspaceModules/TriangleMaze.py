@@ -17,8 +17,8 @@ class TriangleMaze:
     horizontalMazeSpacing = 36.374 #mm
     verticalMazeSpacing = 35.78 #mm
     verticalShift = 14.47 #mm
-    mazeRows = 4
-    mazeCols = 4
+    mazeRows = 8
+    mazeCols = 8
 
     # maze1 is the coordinates of the center of maze number 1 (upper left, sorta)
     # maze64 is the coordinates of the center of maze number 64 (bottom right)

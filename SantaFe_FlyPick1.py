@@ -36,15 +36,15 @@ padFocusHeight = robot.Z1FloorHeight - \
 padFlyPickHeight = robot.Z1FloorHeight - \
                    Workspace2.Workspace2['baseThickness'] - \
                    Workspace2.Workspace2['pad1'].Z2WorkingThickness + \
-                   robot.Z2Offset[4]
+                   robot.Z2Offset[4] 
 mazeLidHeight = robot.Z1FloorHeight - \
                 Workspace2.Workspace2['baseThickness'] - \
                 Workspace2.Workspace2['maze1'].Z0WorkingThickness + \
-                robot.Z0Offset[2]
+                robot.Z0Offset[2] + 0.5 
 mazeFlyHeight = robot.Z1FloorHeight - \
                 Workspace2.Workspace2['baseThickness'] - \
                 Workspace2.Workspace2['maze1'].Z2WorkingThickness + \
-                robot.Z2Offset[4]
+                robot.Z2Offset[4] + 0.5
 
 print "Camera focused on pad height:", padFocusHeight
 print "Fly pick from pad height:", padFlyPickHeight
@@ -70,8 +70,7 @@ print "Lid Z coords:", ZLid
 
 print "--------------------------"
 
-#time.sleep(10)
-
+# time.sleep(10)
 robot.moveZ(ZImagePad)
 
 mazeCounter = 1
@@ -103,9 +102,6 @@ for imgPt in Workspace2.Workspace2['pad1'].imagePoints:
         robot.dwell(1)
         robot.moveZ(ZImagePad)
 
-        # Should take another image and check
-        # to see that we picked up the fly...
-
         # Move it to the next available maze
         # First, remove the lid
         
@@ -115,7 +111,7 @@ for imgPt in Workspace2.Workspace2['pad1'].imagePoints:
         robot.dwell(1)
         robot.smallPartManipVenturi(True)
         robot.moveZ(ZLid)
-        time.sleep(1)
+        time.sleep(0.5)
         robot.dwell(1)
         robot.moveZ(ZImagePad)
 
@@ -126,9 +122,10 @@ for imgPt in Workspace2.Workspace2['pad1'].imagePoints:
         robot.dwell(1)
         robot.moveZ(ZDepositFly)
         robot.flyManipAir(True)
-        time.sleep(0.3)
-        robot.flyManipVenturi(False)
+        time.sleep(0.05)
         robot.flyManipAir(False)
+        robot.flyManipVenturi(False)
+        time.sleep(0.15)
         robot.moveZ(ZImagePad)
 
         # Now replace the lid
