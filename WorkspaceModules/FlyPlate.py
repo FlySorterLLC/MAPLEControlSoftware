@@ -9,7 +9,7 @@ import numpy as np
 class FlyPlate:
 
     MaxThickness = 19.
-    Z0WorkingThickness = 16.
+    Z2WorkingThickness = 12.
     
     wellSpacing = 9.
 

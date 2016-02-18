@@ -122,9 +122,9 @@ for imgPt in Workspace2.Workspace2['pad1'].imagePoints:
         robot.dwell(1)
         robot.moveZ(ZDepositFly)
         robot.flyManipAir(True)
-        time.sleep(0.05)
-        robot.flyManipAir(False)
+        time.sleep(0.25)
         robot.flyManipVenturi(False)
+        robot.flyManipAir(False)
         time.sleep(0.15)
         robot.moveZ(ZImagePad)
 
@@ -135,9 +135,9 @@ for imgPt in Workspace2.Workspace2['pad1'].imagePoints:
         robot.dwell(1)
         robot.moveZ(ZLid)
         robot.smallPartManipAir(True)
+        robot.smallPartManipVenturi(False)
         robot.moveZ(ZImagePad)
         robot.smallPartManipAir(False)
-        robot.smallPartManipVenturi(False)
         
         mazeCounter += 1
         # Take another image in case there are more flies in this region
