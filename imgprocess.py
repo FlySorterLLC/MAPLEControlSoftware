@@ -31,7 +31,7 @@ class imageProcess:
     #thresholding in order to better identify flies.
     #Specifically, it thresholds images for objects within a color range
     
-    #Takes an image array as an argument and returns nothing
+    #Takes an image array as an argument and returns the image
     def findFlies(self, image):
         
         frame = image
@@ -49,10 +49,37 @@ class imageProcess:
         res = cv2.bitwise_and(frame,frame, mask= mask)
 
         # Writes the result onto a new file called 'res.bmp'
-        cv2.imwrite('res.bmp', mask)
+        # cv2.imwrite('res.bmp', mask)      Probably don't need this any longer
 
         return res
 
+    def findOpening(self, image):
+        
+        MAX_SIZE = 250  # range of size in pixels of the circle lid hole
+        MIN_SIZE = 150
+        
+        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        output = image.copy()
+        
+        circles = cv2.HoughCircles(gray, cv2.cv.CV_HOUGH_GRADIENT, 1.8, 300)
+
+        # ensure at least some circles were found
+        if circles is not None:
+            # convert the (x, y) coordinates and radius of the circles to integers
+            circles = np.round(circles[0, :]).astype("int")
+        
+            # loop over the (x, y) coordinates and radius of the circles
+            for (x, y, r) in circles:
+                
+                # draw the circle in the output image, then draw a rectangle
+                # corresponding to the center of the circle
+                # Radius constraints are for MATTED circle lids
+                if r > MIN_SIZE and r < MAX_SIZE:
+                    cv2.circle(output, (x, y), r, (0, 255, 0), 4)
+                    cv2.rectangle(output, (x - 5, y - 5), (x + 5, y + 5), (0, 128, 255), -1)
+    
+        # show the output image
+        return output
 
     #returnFlies takes a processed image 'res.bmp' and:
     # 1. Draws green contours around all flies
@@ -115,10 +142,8 @@ class imageProcess:
         return self.returnFlies(result, reference)
 
 # -------   Test Programs ------------
-#a = imageProcess()
-#a.config("grid-1.bmp")
-#print a.execute("1.bmp", reference)
+a = imageProcess()
 
-#cv2.imshow('Processed Image', cv2.imread("res2.bmp"))
+#a.config("red lid.png")
+#cv2.imshow('Targets', a.findOpening(cv2.imread("matte black.png")))
 #cv2.waitKey(0)
-#cv2.destroyAllWindows()
