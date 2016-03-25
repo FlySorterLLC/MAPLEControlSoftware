@@ -55,13 +55,13 @@ class imageProcess:
 
     def findOpening(self, image):
         
-        MAX_SIZE = 250  # range of size in pixels of the circle lid hole
-        MIN_SIZE = 150
+        MAX_SIZE = 150  # range of size in pixels of the circle lid hole
+        MIN_SIZE = 50
         
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
         output = image.copy()
         
-        circles = cv2.HoughCircles(gray, cv2.cv.CV_HOUGH_GRADIENT, 1.6, 300)
+        circles = cv2.HoughCircles(gray, cv2.cv.CV_HOUGH_GRADIENT, 1.3, 300)
 
         # ensure at least some circles were found
         if circles is not None:
@@ -145,5 +145,5 @@ class imageProcess:
 a = imageProcess()
 
 #a.config("circle_lid_1.bmp")
-cv2.imshow('Targets', a.findOpening(cv2.imread("circle_lid_1.bmp")))
+cv2.imshow('Targets', a.findOpening(cv2.imread("t1.png")))
 cv2.waitKey(0)
