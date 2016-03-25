@@ -61,7 +61,7 @@ class imageProcess:
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
         output = image.copy()
         
-        circles = cv2.HoughCircles(gray, cv2.cv.CV_HOUGH_GRADIENT, 1.8, 300)
+        circles = cv2.HoughCircles(gray, cv2.cv.CV_HOUGH_GRADIENT, 1.6, 300)
 
         # ensure at least some circles were found
         if circles is not None:
@@ -77,7 +77,7 @@ class imageProcess:
                 if r > MIN_SIZE and r < MAX_SIZE:
                     cv2.circle(output, (x, y), r, (0, 255, 0), 4)
                     cv2.rectangle(output, (x - 5, y - 5), (x + 5, y + 5), (0, 128, 255), -1)
-    
+        
         # show the output image
         return output
 
@@ -144,6 +144,6 @@ class imageProcess:
 # -------   Test Programs ------------
 a = imageProcess()
 
-#a.config("red lid.png")
-#cv2.imshow('Targets', a.findOpening(cv2.imread("matte black.png")))
-#cv2.waitKey(0)
+#a.config("circle_lid_1.bmp")
+cv2.imshow('Targets', a.findOpening(cv2.imread("circle_lid_1.bmp")))
+cv2.waitKey(0)
