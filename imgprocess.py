@@ -55,13 +55,17 @@ class imageProcess:
 
     def findOpening(self, image):
         
-        MAX_SIZE = 100  # range of size in pixels of the circle lid hole
-        MIN_SIZE = 40
+        result = []
+        MAX_SIZE = 110  # range of size in pixels of the circle lid hole
+        MIN_SIZE = 70
         
+        image = cv2.imread(image)
+        image = cv2.medianBlur(image,5)
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
         output = image.copy()
         
-        circles = cv2.HoughCircles(gray, cv2.cv.CV_HOUGH_GRADIENT, 1.5, 300)
+        circles = cv2.HoughCircles(gray,cv2.cv.CV_HOUGH_GRADIENT,1.1,300,
+                                   param1=50,param2=30,minRadius=0,maxRadius=0)
 
         # ensure at least some circles were found
         if circles is not None:
@@ -70,16 +74,20 @@ class imageProcess:
         
             # loop over the (x, y) coordinates and radius of the circles
             for (x, y, r) in circles:
-                
+
                 # draw the circle in the output image, then draw a rectangle
                 # corresponding to the center of the circle
                 # Radius constraints are for MATTED circle lids
-                if r > MIN_SIZE and r < MAX_SIZE:
+                if r in range(MIN_SIZE, MAX_SIZE) and x in range(170, 770) and y in range(70, 640):
+                    result.append((x,y))
                     cv2.circle(output, (x, y), r, (0, 255, 0), 4)
                     cv2.rectangle(output, (x - 5, y - 5), (x + 5, y + 5), (0, 128, 255), -1)
+    
+        cv2.circle(output,(470,340), 310, (0,0,255), 5, -1)
+        cv2.imshow("Output", output)
+        cv2.waitKey(0)
         
-        # show the output image
-        return output
+        return result
 
     #returnFlies takes a processed image 'res.bmp' and:
     # 1. Draws green contours around all flies
@@ -144,6 +152,4 @@ class imageProcess:
 # -------   Test Programs ------------
 a = imageProcess()
 
-#a.config("circle_lid_1.bmp")
-cv2.imshow('Targets', a.findOpening(cv2.imread("t6.png")))
-cv2.waitKey(0)
+print a.findOpening("t4.png")
