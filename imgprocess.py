@@ -56,16 +56,16 @@ class imageProcess:
     def findOpening(self, image):
         
         result = []
-        MAX_SIZE = 110  # range of size in pixels of the circle lid hole
-        MIN_SIZE = 70
+        MAX_SIZE = 60  # range of size in pixels of the circle lid hole
+        MIN_SIZE = 30
         
         image = cv2.imread(image)
-        image = cv2.medianBlur(image,5)
-        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
         output = image.copy()
+        # image = cv2.medianBlur(image,5)
+        image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
         
-        circles = cv2.HoughCircles(gray,cv2.cv.CV_HOUGH_GRADIENT,1.1,300,
-                                   param1=50,param2=30,minRadius=0,maxRadius=0)
+        circles = cv2.HoughCircles(image,cv2.cv.CV_HOUGH_GRADIENT,1.3,300,
+                                   param1=50,param2=30,minRadius=MIN_SIZE,maxRadius=MAX_SIZE)
 
         # ensure at least some circles were found
         if circles is not None:
@@ -78,12 +78,13 @@ class imageProcess:
                 # draw the circle in the output image, then draw a rectangle
                 # corresponding to the center of the circle
                 # Radius constraints are for MATTED circle lids
-                if r in range(MIN_SIZE, MAX_SIZE) and x in range(170, 770) and y in range(70, 640):
+                if x in range(140, 700) and y in range(20, 580):
                     result.append((x,y))
                     cv2.circle(output, (x, y), r, (0, 255, 0), 4)
                     cv2.rectangle(output, (x - 5, y - 5), (x + 5, y + 5), (0, 128, 255), -1)
     
-        cv2.circle(output,(470,340), 310, (0,0,255), 5, -1)
+        cv2.circle(output,(420,300), 280, (0,255,0), 5, -1)
+        cv2.circle(output,(420,300), 150, (0,255,0), 5, -1)
         cv2.imshow("Output", output)
         cv2.waitKey(0)
         
@@ -152,4 +153,4 @@ class imageProcess:
 # -------   Test Programs ------------
 a = imageProcess()
 
-print a.findOpening("t4.png")
+print a.findOpening("t3.png")
