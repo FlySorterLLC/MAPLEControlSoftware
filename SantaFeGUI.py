@@ -6,8 +6,9 @@ import cv2
 import numpy as np
 import time
 import robotutil
+import os.path
 
-
+MAX_IMAGES = 50
 imgSize = ( 864, 648 )
 crosshairPts = (( 422, 324 ), ( 442, 324 ), ( 432, 314 ), ( 432, 334 ))
 
@@ -46,8 +47,8 @@ startTime = time.time()
 while ( key != 27 ): # ESC to exit
     if ( imageMode == True):
         # Update the image once a second
-        if ( time.time() - startTime > 1. ):
-            # Capture image, resize for the screen, and draw crosshairs
+        if ( time.time() - startTime > 0.5 ):
+            # Capture image, resize for the screen667u, and draw crosshairs
             img = cv2.resize(robot.captureImage(), imgSize)
             startTime = time.time()
     # Update the position and show image every time, though
@@ -63,6 +64,7 @@ while ( key != 27 ): # ESC to exit
     p           - print coordinates (in this window)
     SPACE       - update the image
     m           - toggle between capturing images continuously and not
+    c 			- Capture image and save to Repo
 
 Move +/- 10mm:
     a/d         - X
@@ -88,12 +90,13 @@ Modifier keys:
                 newPosition[i] = float(coord)
                 i = i+1
             robot.moveTo(newPosition)
+
     elif( key == ord('p') ):
         print robot.getCurrentPosition()
-    elif( key == ord('m') ):
-        imageMode = not imageMode
     elif( key == ord(' ') ):
         img = cv2.resize(robot.captureImage(), imgSize)
+    elif( key == ord('m') ):
+		imageMode = not imageMode
     elif( key == ord('a') ):
         robot.moveRel(np.array([10.0, 0.0, 0.0, 0.0, 0.0]))
     elif( key == ord('d') ):
@@ -154,6 +157,15 @@ Modifier keys:
         robot.moveRel(np.array([0.0, 0.0, 0.0, 0.0, -0.1]))
     elif( key == 12 ): # ctrl-l
         robot.moveRel(np.array([0.0, 0.0, 0.0, 0.0, 0.1]))
+    # Capture the current image and save it to a file img X.png
+    elif( key == ord('c') ):
+        img = cv2.resize(robot.captureImage(), imgSize)
+        img_saved = False
+        for i in range(MAX_IMAGES):
+	        if not os.path.exists("img" + str(i) + ".png") and not img_saved:
+				cv2.imwrite("img" + str(i) + ".png", img)
+				img_saved = True
+				print "Image img" + str(i) + ".png saved"
     else:
         if (( key != -1 ) and ( key != 27) ):
             print "Unknown keypress:", key
