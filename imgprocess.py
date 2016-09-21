@@ -153,4 +153,4 @@ class imageProcess:
 # -------   Test Programs ------------
 a = imageProcess()
 
-print a.findOpening("t1.png")
+print a.findOpening("img0.png")
