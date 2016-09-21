@@ -53,6 +53,11 @@ class imageProcess:
 
         return res
 
+    def processLid(self, image):
+    	image = cv2.imread(image)
+    	cv2.imshow("Processed Lid", image)
+    	cv2.waitKey(0)
+
     def findOpening(self, image):
         
         result = []
@@ -153,4 +158,15 @@ class imageProcess:
 # -------   Test Programs ------------
 a = imageProcess()
 
-print a.findOpening("img0.png")
+a.processLid("img0.png")
+# print a.findOpening("img0.png")
+# print a.findOpening("img1.png")
+# print a.findOpening("img2.png")
+# print a.findOpening("img3.png")
+# print a.findOpening("img4.png")
+# print a.findOpening("img5.png")
+# print a.findOpening("img6.png")
+# print a.findOpening("img7.png")
+# print a.findOpening("img8.png")
+# print a.findOpening("img9.png")
+# print a.findOpening("img10.png")
