@@ -27,20 +27,22 @@ imageSize = (1900/PPMM, 1900/PPMM) #(1900, 1900) in pixels
 
 class imageProcess:
     
-    #findFlies takes an image and executes some preliminary editing and 
+    #processImage takes an image and executes some preliminary editing and 
     #thresholding in order to better identify flies.
     #Specifically, it thresholds images for objects within a color range
     
     #Takes an image array as an argument and returns the image
-    def findFlies(self, image):
+    def processImage(self, image):
         
-        frame = image
+        frame = cv2.imread(image)
         # Convert BGR to HSV
         hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
 
         # define range of red color in HSV
         lower_red = np.array([0,0,0])
+        
         upper_red = np.array([255,250,100])
+        # upper_red = np.array([255,50,250])
 
         # Threshold the HSV image to get only red colors
         mask = cv2.inRange(hsv, lower_red, upper_red)
@@ -52,11 +54,6 @@ class imageProcess:
         # cv2.imwrite('res.bmp', mask)      Probably don't need this any longer
 
         return res
-
-    def processLid(self, image):
-    	image = cv2.imread(image)
-    	cv2.imshow("Processed Lid", image)
-    	cv2.waitKey(0)
 
     def findOpening(self, image):
         
@@ -152,13 +149,14 @@ class imageProcess:
 
         
     def execute(self, image, reference):
-        result = self.findFlies(image)
+        result = self.processImage(image)
         return self.returnFlies(result, reference)
 
 # -------   Test Programs ------------
 a = imageProcess()
 
-a.processLid("img0.png")
+cv2.imshow("Processed Lid", a.processImage("img0.png"))
+cv2.waitKey(0)
 # print a.findOpening("img0.png")
 # print a.findOpening("img1.png")
 # print a.findOpening("img2.png")
