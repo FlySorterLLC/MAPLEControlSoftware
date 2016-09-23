@@ -65,7 +65,6 @@ class imageProcess:
         output = image.copy()
         # image = cv2.medianBlur(image,5)
         image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-        cv2.imshow("Gray scale", image)
 
         circles = cv2.HoughCircles(image,cv2.cv.CV_HOUGH_GRADIENT,1.3,300,
                                    param1=50,param2=30,minRadius=MIN_SIZE,maxRadius=MAX_SIZE)
@@ -81,10 +80,11 @@ class imageProcess:
                 # draw the circle in the output image, then draw a rectangle
                 # corresponding to the center of the circle
                 # Radius constraints are for MATTED circle lids
-                if x in range(140, 700) and y in range(25, 575):
-                    result.append((x,y))
-                    cv2.circle(output, (x, y), r, (0, 255, 0), 4)
-                    cv2.rectangle(output, (x - 5, y - 5), (x + 5, y + 5), (0, 128, 255), -1)
+                if x in range(140, 700) and y in range(20, 580):
+                	# if x not in range(270, 570) and y not in range(150, 450):
+	                    result.append((x,y))
+	                    cv2.circle(output, (x, y), r, (0, 255, 0), 4)
+	                    cv2.rectangle(output, (x - 5, y - 5), (x + 5, y + 5), (0, 128, 255), -1)
     
         cv2.circle(output,(420,300), 280, (0,255,0), 5, -1)
         cv2.circle(output,(420,300), 150, (0,255,0), 5, -1)
