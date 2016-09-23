@@ -59,13 +59,14 @@ class imageProcess:
         
         result = []
         MAX_SIZE = 60  # range of size in pixels of the circle lid hole
-        MIN_SIZE = 30
+        MIN_SIZE = 35
         
         image = cv2.imread(image)
         output = image.copy()
         # image = cv2.medianBlur(image,5)
         image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-        
+        cv2.imshow("Gray scale", image)
+
         circles = cv2.HoughCircles(image,cv2.cv.CV_HOUGH_GRADIENT,1.3,300,
                                    param1=50,param2=30,minRadius=MIN_SIZE,maxRadius=MAX_SIZE)
 
@@ -80,7 +81,7 @@ class imageProcess:
                 # draw the circle in the output image, then draw a rectangle
                 # corresponding to the center of the circle
                 # Radius constraints are for MATTED circle lids
-                if x in range(140, 700) and y in range(20, 580):
+                if x in range(140, 700) and y in range(25, 575):
                     result.append((x,y))
                     cv2.circle(output, (x, y), r, (0, 255, 0), 4)
                     cv2.rectangle(output, (x - 5, y - 5), (x + 5, y + 5), (0, 128, 255), -1)
@@ -98,17 +99,17 @@ class imageProcess:
     	ret, thresh = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
     	return thresh
 
-    #returnFlies takes a processed image 'res.bmp' and:
+    # returnFlies takes a processed image 'res.bmp' and:
     # 1. Draws green contours around all flies
     # 2. Draws a red bounding rectangle around each fly
     # 3. Returns the center of the bounding rectangle in pixel coordinates
     #    (x,y) with the origin at the top left hand side and draws a blue dot
-    #takes image file as an argument and returns an array of all coordinate pairs
+    # takes image file as an argument and returns an array of all coordinate pairs
     
     def returnFlies(self,image, reference):
         
         img = image
-        #img = cv2.resize(img,(400,500))     #have to resize image otherwise it's too big!
+        # img = cv2.resize(img,(400,500))     #have to resize image otherwise it's too big!
         
         gray = cv2.cvtColor(img,cv2.COLOR_BGR2GRAY)
         ret,gray = cv2.threshold(gray,127,255,0)
@@ -161,12 +162,11 @@ class imageProcess:
 # -------   Test Programs ------------
 a = imageProcess()
 
-cv2.imshow("Processed Lid", a.watershed("img0.png"))
-cv2.waitKey(0)
-# print a.findOpening("img0.png")
-# print a.findOpening("img1.png")
-# print a.findOpening("img2.png")
-# print a.findOpening("img3.png")
+# cv2.imshow("Processed Lid", a.watershed("img11.png"))
+print a.findOpening("img0.png")
+print a.findOpening("img1.png")
+print a.findOpening("img2.png")
+print a.findOpening("img3.png")
 # print a.findOpening("img4.png")
 # print a.findOpening("img5.png")
 # print a.findOpening("img6.png")
