@@ -92,6 +92,12 @@ class imageProcess:
         
         return result
 
+    def watershed(self, image):
+    	img = cv2.imread(image)
+    	gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    	ret, thresh = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+    	return thresh
+
     #returnFlies takes a processed image 'res.bmp' and:
     # 1. Draws green contours around all flies
     # 2. Draws a red bounding rectangle around each fly
@@ -155,7 +161,7 @@ class imageProcess:
 # -------   Test Programs ------------
 a = imageProcess()
 
-cv2.imshow("Processed Lid", a.processImage("img0.png"))
+cv2.imshow("Processed Lid", a.watershed("img0.png"))
 cv2.waitKey(0)
 # print a.findOpening("img0.png")
 # print a.findOpening("img1.png")
