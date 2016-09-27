@@ -63,11 +63,11 @@ class imageProcess:
         
         image = cv2.imread(image)
         output = image.copy()
-        # image = cv2.medianBlur(image,5)
-        image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
-        circles = cv2.HoughCircles(image,cv2.cv.CV_HOUGH_GRADIENT,1.3,300,
-                                   param1=50,param2=30,minRadius=MIN_SIZE,maxRadius=MAX_SIZE)
+        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        thresh = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2)
+        circles = cv2.HoughCircles(thresh,cv2.cv.CV_HOUGH_GRADIENT,1.3,300,
+                                   param1=50,param2=70,minRadius=MIN_SIZE,maxRadius=MAX_SIZE)
 
         # ensure at least some circles were found
         if circles is not None:
@@ -80,14 +80,14 @@ class imageProcess:
                 # draw the circle in the output image, then draw a rectangle
                 # corresponding to the center of the circle
                 # Radius constraints are for MATTED circle lids
-                if x in range(140, 700) and y in range(20, 580):
-                	# if x not in range(270, 570) and y not in range(150, 450):
+                if not (x in range(270, 570) and y in range(150, 450)):
+                	if x in range(140, 700) and y in range(20, 580):
 	                    result.append((x,y))
 	                    cv2.circle(output, (x, y), r, (0, 255, 0), 4)
 	                    cv2.rectangle(output, (x - 5, y - 5), (x + 5, y + 5), (0, 128, 255), -1)
     
-        cv2.circle(output,(420,300), 280, (0,255,0), 5, -1)
-        cv2.circle(output,(420,300), 150, (0,255,0), 5, -1)
+        cv2.circle(output,(420,300), 280, (0,255,0), 3, -1)
+        cv2.circle(output,(420,300), 150, (0,255,0), 3, -1)
         cv2.imshow("Output", output)
         cv2.waitKey(0)
         
@@ -162,15 +162,16 @@ class imageProcess:
 # -------   Test Programs ------------
 a = imageProcess()
 
+
 # cv2.imshow("Processed Lid", a.watershed("img11.png"))
 print a.findOpening("img0.png")
 print a.findOpening("img1.png")
 print a.findOpening("img2.png")
 print a.findOpening("img3.png")
-# print a.findOpening("img4.png")
-# print a.findOpening("img5.png")
-# print a.findOpening("img6.png")
-# print a.findOpening("img7.png")
-# print a.findOpening("img8.png")
-# print a.findOpening("img9.png")
-# print a.findOpening("img10.png")
+print a.findOpening("img4.png")
+print a.findOpening("img5.png")
+print a.findOpening("img6.png")
+print a.findOpening("img7.png")
+print a.findOpening("img8.png")
+print a.findOpening("img9.png")
+print a.findOpening("img10.png")
