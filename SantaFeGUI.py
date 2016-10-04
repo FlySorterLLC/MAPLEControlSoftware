@@ -9,9 +9,12 @@ import robotutil
 import os.path
 import imgprocess
 
-MAX_IMAGES = 50
 imgSize = ( 864, 648 )
 crosshairPts = (( 422, 324 ), ( 442, 324 ), ( 432, 314 ), ( 432, 334 ))
+
+ref = (65, 120)
+PPMM = 28
+mazeLoc = (65, 120, 0, 30, 30)
 
 # Print a string on an image from the current position
 def printPosition(robot, img):
@@ -163,8 +166,9 @@ Modifier keys:
     elif( key == ord('c') ):
         img = cv2.resize(robot.captureImage(), imgSize)
         cv2.imwrite("temp_img.png", img)
-        print processor.findOpening("temp_img.png")
-
+        targets = processor.findOpening("temp_img.png")
+        x, y = targets[0]
+        robot.moveTo(((x - ref[0])/PPMM, (y - ref[1])/PPMM, mazeLoc[2], mazeLoc[3], mazeLoc[4]))
     else:
         if (( key != -1 ) and ( key != 27) ):
             print "Unknown keypress:", key
