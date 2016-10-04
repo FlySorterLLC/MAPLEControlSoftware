@@ -164,7 +164,7 @@ class imageProcess:
 
 
 # cv2.imshow("Processed Lid", a.watershed("img11.png"))
-# print a.findOpening("img0.png")
+# print a.findOpening("temp_img.png")
 # print a.findOpening("img1.png")
 # print a.findOpening("img2.png")
 # print a.findOpening("img3.png")

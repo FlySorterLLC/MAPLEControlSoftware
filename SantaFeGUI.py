@@ -12,8 +12,8 @@ import imgprocess
 imgSize = ( 864, 648 )
 crosshairPts = (( 422, 324 ), ( 442, 324 ), ( 432, 314 ), ( 432, 334 ))
 
-ref = (65, 120)
-PPMM = 28
+ref = (420, 330)
+PPMM = 1
 mazeLoc = (65, 120, 0, 30, 30)
 
 # Print a string on an image from the current position
@@ -39,7 +39,7 @@ if robot.isInitialized == False:
 else:
     print "Robot initialized."
 
-robot.home()
+# robot.home()
 
 robot.light(True)
 
@@ -167,8 +167,16 @@ Modifier keys:
         img = cv2.resize(robot.captureImage(), imgSize)
         cv2.imwrite("temp_img.png", img)
         targets = processor.findOpening("temp_img.png")
-        x, y = targets[0]
-        robot.moveTo(((x - ref[0])/PPMM, (y - ref[1])/PPMM, mazeLoc[2], mazeLoc[3], mazeLoc[4]))
+        pos = robot.getCurrentPosition()
+        if targets:
+        	a, b = targets[0]
+        	x = 124.355 - 0.0477 * a
+        	y = 147.598 - 0.0503 * b
+        else:
+        	x = 0
+        	y = 0
+        
+        robot.moveTo((x, y, 0, 30, 40))
     else:
         if (( key != -1 ) and ( key != 27) ):
             print "Unknown keypress:", key
