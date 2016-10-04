@@ -7,6 +7,7 @@ import numpy as np
 import time
 import robotutil
 import os.path
+import imgprocess
 
 MAX_IMAGES = 50
 imgSize = ( 864, 648 )
@@ -27,6 +28,7 @@ def printPosition(robot, img):
     
 # And pass in the ZAxisBaseAddress here
 robot = robotutil.santaFe("SantaFe.cfg")
+processor = imgprocess.imageProcess()
 
 if robot.isInitialized == False:
     print "Initialization error."
@@ -160,12 +162,9 @@ Modifier keys:
     # Capture the current image and save it to a file img X.png
     elif( key == ord('c') ):
         img = cv2.resize(robot.captureImage(), imgSize)
-        img_saved = False
-        for i in range(MAX_IMAGES):
-	        if not os.path.exists("img" + str(i) + ".png") and not img_saved:
-				cv2.imwrite("img" + str(i) + ".png", img)
-				img_saved = True
-				print "Image img" + str(i) + ".png saved"
+        cv2.imwrite("temp_img.png", img)
+        print processor.findOpening("temp_img.png")
+
     else:
         if (( key != -1 ) and ( key != 27) ):
             print "Unknown keypress:", key
