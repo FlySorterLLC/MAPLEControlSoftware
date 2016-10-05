@@ -6,7 +6,7 @@
 ## Also draws the contours, bounding rectangles, and centroids of each fly
 
 ## By: Will Long
-## MRU: Nov 29 2015
+## MRU: Oct 5 2016
 
 import cv2
 import numpy as np

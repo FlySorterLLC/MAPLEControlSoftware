@@ -164,17 +164,18 @@ Modifier keys:
         robot.moveRel(np.array([0.0, 0.0, 0.0, 0.0, 0.1]))
     # Capture the current image and save it to a file img X.png
     elif( key == ord('c') ):
-        img = cv2.resize(robot.captureImage(), imgSize)
-        cv2.imwrite("temp_img.png", img)
-        targets = processor.findOpening("temp_img.png")
+    	img = cv2.resize(robot.captureImage(), imgSize)
+    	cv2.imwrite("temp_img.png", img)
+    	targets = processor.findOpening("temp_img.png")
+
         pos = robot.getCurrentPosition()
         if targets:
         	a, b = targets[0]
         	x = 124.355 - 0.0477 * a
         	y = 147.598 - 0.0503 * b
         else:
-        	x = 0
-        	y = 0
+        	x = pos[0]
+        	y = pos[1]
         
         robot.moveTo((x, y, 0, 30, 40))
     else:
