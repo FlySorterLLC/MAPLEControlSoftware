@@ -41,6 +41,19 @@ padSize = (50, 50)                    #size of the pad in x, y
 mazeLocation = (500, 100, 10, 0, 0)
 imageSize = (1900/PPMM, 1900/PPMM)      #(1900, 1900) in pixels
 
+def generateMazeLocs():
+    mazeLocs = []
+    oddMaze1 = (304, 233)
+    evenMaze1 = (290, 204)
+
+    for row in range(5):        # camera can't seem to capture farthest row
+        mazeRow = []
+        for col in range(9):
+            mazeRow.append((oddMaze1[0] - col * 30, oddMaze1[1] - row * 60))
+        mazeLocs.append(mazeRow)
+
+    return mazeLocs
+
 def getAllFlies(robot, padLocation, padSize, imageSize, mazeLocation):
     
     duration = 2
@@ -75,5 +88,10 @@ def getAllFlies(robot, padLocation, padSize, imageSize, mazeLocation):
             robot.depositInMaze(mazeLocation, duration)
 
 robot.light(True)
-getAllFlies(robot, padLocation, padSize, imageSize, mazeLocation)    
+# getAllFlies(robot, padLocation, padSize, imageSize, mazeLocation)  
+mazes = generateMazeLocs() 
+print mazes 
+for row in range(5):
+    for maze in mazes[row]:
+        robot.moveTo((maze[0], maze[1], 0, 30, 0))
 robot.release()
