@@ -49,7 +49,7 @@ def generateMazeLocs():
     for row in range(5):        # camera can't seem to capture farthest row
         mazeRow = []
         for col in range(9):
-            mazeRow.append((oddMaze1[0] - col * 30, oddMaze1[1] - row * 60))
+            mazeRow.append((oddMaze1[0] - col * 30, oddMaze1[1] - row * 56))
         mazeLocs.append(mazeRow)
 
     return mazeLocs
@@ -91,7 +91,12 @@ robot.light(True)
 # getAllFlies(robot, padLocation, padSize, imageSize, mazeLocation)  
 mazes = generateMazeLocs() 
 print mazes 
-for row in range(5):
+for row in range(6):
+    img = cv2.resize(robot.captureImage(), ( 864, 648 ))
+    cv2.imshow("camera", img)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
     for maze in mazes[row]:
         robot.moveTo((maze[0], maze[1], 0, 30, 0))
+
 robot.release()
