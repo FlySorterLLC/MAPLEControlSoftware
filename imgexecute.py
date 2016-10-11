@@ -90,13 +90,29 @@ def getAllFlies(robot, padLocation, padSize, imageSize, mazeLocation):
 robot.light(True)
 # getAllFlies(robot, padLocation, padSize, imageSize, mazeLocation)  
 mazes = generateMazeLocs() 
-print mazes 
-for row in range(6):
-    img = cv2.resize(robot.captureImage(), ( 864, 648 ))
-    cv2.imshow("camera", img)
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
+
+numCorrect = 0
+numMazes = 6 * len(mazes[0])
+
+a = imgprocess.imageProcess()
+
+for row in range(2):
     for maze in mazes[row]:
+        img = cv2.resize(robot.captureImage(), ( 864, 648 ))
+        cv2.imwrite('temp_img.png', img)
+        print a.findOpening('temp_img.png')
+
+        result = input("Is this target correct?")
+        print result
+
+        if result == "y":
+            
+            numCorrect = numCorrect + 1
+            # cv2.destroyAllWindows()
+        # else:
+            # cv2.destroyAllWindows()
+
         robot.moveTo((maze[0], maze[1], 0, 30, 0))
 
+print str(numCorrect) + " correct out of " + str(numMazes)
 robot.release()
