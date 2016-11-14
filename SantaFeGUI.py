@@ -21,14 +21,14 @@ def printPosition(robot, img):
     global imgSize, crosshairPts
     currentPosition = robot.getCurrentPosition()
     posStr = "X: {0[0]:.1f} Y:{0[1]:.1f} Z0: {0[2]:.2f} Z1: {0[3]:.2f} Z2: {0[4]:.2f}".format(currentPosition)
-    cv2.rectangle(img, (0, imgSize[1]), (imgSize[0], imgSize[1]-30), (25, 25, 25), -1) 
+    cv2.rectangle(img, (0, imgSize[1]), (imgSize[0], imgSize[1]-30), (25, 25, 25), -1)
     cv2.putText(img, posStr, (25, imgSize[1]-10), cv2.FONT_HERSHEY_PLAIN, 1, (255, 255, 255))
     cv2.putText(img, "? for help", (25, 30), cv2.FONT_HERSHEY_PLAIN, 2, (255, 255,255), 2)
     cv2.line(img, crosshairPts[0], crosshairPts[1], (0,0,0), 3)
     cv2.line(img, crosshairPts[2], crosshairPts[3], (0,0,0), 3)
     cv2.line(img, crosshairPts[0], crosshairPts[1], (255, 255, 255), 1)
     cv2.line(img, crosshairPts[2], crosshairPts[3], (255, 255, 255), 1)
-    
+
 # And pass in the ZAxisBaseAddress here
 robot = robotutil.santaFe("SantaFe.cfg")
 processor = imgprocess.imageProcess()
@@ -69,7 +69,7 @@ while ( key != 27 ): # ESC to exit
     p           - print coordinates (in this window)
     SPACE       - update the image
     m           - toggle between capturing images continuously and not
-    c 			- Capture image and save to Repo
+    c           - Capture image and save to Repo
 
 Move +/- 10mm:
     a/d         - X
@@ -101,7 +101,7 @@ Modifier keys:
     elif( key == ord(' ') ):
         img = cv2.resize(robot.captureImage(), imgSize)
     elif( key == ord('m') ):
-		imageMode = not imageMode
+        imageMode = not imageMode
     elif( key == ord('a') ):
         robot.moveRel(np.array([10.0, 0.0, 0.0, 0.0, 0.0]))
     elif( key == ord('d') ):
@@ -164,23 +164,25 @@ Modifier keys:
         robot.moveRel(np.array([0.0, 0.0, 0.0, 0.0, 0.1]))
     # Capture the current image and save it to a file img X.png
     elif( key == ord('c') ):
-    	img = cv2.resize(robot.captureImage(), imgSize)
-    	cv2.imwrite("temp_img.png", img)
-    	targets = processor.findOpening("temp_img.png")
+        img = cv2.resize(robot.captureImage(), imgSize)
+        cv2.imwrite("temp_img.png", img)
+        targets = processor.findOpening("temp_img.png")
 
         pos = robot.getCurrentPosition()
         if targets:
-        	a, b = targets[0]
-        	x = 124.355 - 0.0477 * a
-        	y = 147.598 - 0.0503 * b
+            a, b = targets[0]
+            x = 124.355 - 0.0477 * a
+            y = 147.598 - 0.0503 * b
         else:
-        	x = pos[0]
-        	y = pos[1]
-        
+            x = pos[0]
+            y = pos[1]
+
         robot.moveTo((x, y, 0, 30, 40))
     else:
         if (( key != -1 ) and ( key != 27) ):
             print "Unknown keypress:", key
 
+print "Closing down."
+robot.smoothie.sendCmd("M84\n")
 cv2.destroyAllWindows()
 robot.release()
