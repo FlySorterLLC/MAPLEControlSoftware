@@ -29,18 +29,18 @@ Workspace2.Workspace2['pad1'].calculateRegionCoords(robot.FOV)
 
 xyOffset = np.array([-5., -5.])
 
-# 
+#
 padFocusHeight = robot.Z1FloorHeight - \
                  Workspace2.Workspace2['baseThickness'] - \
                  Workspace2.Workspace2['pad1'].Z1WorkingThickness
 padFlyPickHeight = robot.Z1FloorHeight - \
                    Workspace2.Workspace2['baseThickness'] - \
                    Workspace2.Workspace2['pad1'].Z2WorkingThickness + \
-                   robot.Z2Offset[4] 
+                   robot.Z2Offset[4]
 mazeLidHeight = robot.Z1FloorHeight - \
                 Workspace2.Workspace2['baseThickness'] - \
                 Workspace2.Workspace2['maze1'].Z0WorkingThickness + \
-                robot.Z0Offset[2] + 0.5 
+                robot.Z0Offset[2] + 0.5
 mazeFlyHeight = robot.Z1FloorHeight - \
                 Workspace2.Workspace2['baseThickness'] - \
                 Workspace2.Workspace2['maze1'].Z2WorkingThickness + \
@@ -94,22 +94,22 @@ for imgPt in Workspace2.Workspace2['pad1'].imagePoints:
         # Grab fly
         flyXYPoint = imgPt + flyPoint + robot.Z2Offset[0:2]
         robot.moveXY(flyXYPoint-xyOffset)
-        robot.moveXY(flyXYPoint)        
+        robot.moveXY(flyXYPoint)
         robot.dwell(1)
         robot.moveZ(ZGrabFly)
-        robot.flyManipVenturi(True)
+        robot.flyManipVac(True)
         time.sleep(0.5)
         robot.dwell(1)
         robot.moveZ(ZImagePad)
 
         # Move it to the next available maze
         # First, remove the lid
-        
+
         mazePt = Workspace2.Workspace2['maze1'].getMaze(mazeCounter) + robot.Z0Offset[0:2]
         robot.moveXY(mazePt-xyOffset)
         robot.moveXY(mazePt)
         robot.dwell(1)
-        robot.smallPartManipVenturi(True)
+        robot.smallPartManipVac(True)
         robot.moveZ(ZLid)
         time.sleep(0.5)
         robot.dwell(1)
@@ -121,9 +121,9 @@ for imgPt in Workspace2.Workspace2['pad1'].imagePoints:
         robot.moveXY(mazePt)
         robot.dwell(1)
         robot.moveZ(ZDepositFly)
+        robot.flyManipVac(False)
         robot.flyManipAir(True)
         time.sleep(0.25)
-        robot.flyManipVenturi(False)
         robot.flyManipAir(False)
         time.sleep(0.15)
         robot.moveZ(ZImagePad)
@@ -134,11 +134,11 @@ for imgPt in Workspace2.Workspace2['pad1'].imagePoints:
         robot.moveXY(mazePt)
         robot.dwell(1)
         robot.moveZ(ZLid)
+        robot.smallPartManipVac(False)
         robot.smallPartManipAir(True)
-        robot.smallPartManipVenturi(False)
         robot.moveZ(ZImagePad)
         robot.smallPartManipAir(False)
-        
+
         mazeCounter += 1
         # Take another image in case there are more flies in this region
         robot.moveZ(ZImagePad)
@@ -151,4 +151,3 @@ for imgPt in Workspace2.Workspace2['pad1'].imagePoints:
 
 cv2.destroyAllWindows()
 robot.release()
-

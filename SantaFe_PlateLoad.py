@@ -42,7 +42,7 @@ dispenserHeight = robot.Z1FloorHeight + robot.Z2Offset[4] - \
 plateHeight = robot.Z1FloorHeight + robot.Z2Offset[4] - \
               Workspace1.Workspace1['baseThickness'] - \
               Workspace1.Workspace1['plate1'].Z2WorkingThickness
-              
+
 
 print "Transit height:", transitHeight
 print "Fly pick from dispeser height:", dispenserHeight
@@ -57,7 +57,7 @@ robot.light(True)
 flyCount = 0
 
 while flyCount < 96:
-    
+
     # Move Z to transit height
     robot.dwell(1)
     robot.moveZ(transitZ)
@@ -72,7 +72,7 @@ while flyCount < 96:
 
     # Enable vacuum
     robot.dwell(1)
-    robot.flyManipVenturi(True)
+    robot.flyManipVac(True)
 
     # Dispense fly
     if ( Workspace1.Workspace1['dispenser1'].dispenseFly() == 1 ):
@@ -93,12 +93,12 @@ while flyCount < 96:
     robot.moveZ(plateZ)
 
     # Release fly
+    robot.flyManipVac(False)
     robot.flyManipAir(True)
     time.sleep(1)
 
     # Move Z to transit height
     robot.moveZ(transitZ)
-    robot.flyManipVenturi(False)
     robot.flyManipAir(False)
     flyCount += 1
 
@@ -107,4 +107,3 @@ robot.light(False)
 
 cv2.destroyAllWindows()
 robot.release()
-
