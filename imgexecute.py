@@ -44,7 +44,7 @@ imageSize = (1900/PPMM, 1900/PPMM)      #(1900, 1900) in pixels
 
 def generateMazeLocs():
     mazeLocs = []
-    oddMaze1 = (304, 233)
+    oddMaze1 = (304, 244)
     evenMaze1 = (290, 204)
 
     for row in range(5):        # camera can't seem to capture farthest row
