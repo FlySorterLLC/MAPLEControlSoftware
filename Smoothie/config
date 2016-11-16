@@ -144,6 +144,10 @@ endstop.minb.fast_rate                       20               # fast homing rate
 endstop.minb.slow_rate                       5                # slow homing rate in mm/sec
 endstop.minb.retract                         1                # bounce off endstop in mm
 
+endstop.maxb.enable                          true             # enable an endstop
+endstop.maxb.pin                             1.29^            # pin
+endstop.maxb.axis                            B                # the axis designator
+
 # optional enable limit switches, actions will stop if any enabled limit switch is triggered
 endstop.minx.limit_enable                   true            # set to true to enable the limit on this endstop
 endstop.miny.limit_enable                   true            # set to true to enable the limit on this endstop
