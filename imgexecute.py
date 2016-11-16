@@ -12,6 +12,7 @@
 import cv2
 import numpy as np
 import time
+import random
 
 import robotutil
 import imgprocess
@@ -87,32 +88,55 @@ def getAllFlies(robot, padLocation, padSize, imageSize, mazeLocation):
             robot.moveTo(mazeLocation)      #drop them all off at a single location for now
             robot.depositInMaze(mazeLocation, duration)
 
-robot.light(True)
 # getAllFlies(robot, padLocation, padSize, imageSize, mazeLocation)  
-mazes = generateMazeLocs() 
 
-numCorrect = 0
-numMazes = 6 * len(mazes[0])
+def executeLids(robot): 
+    mazes = generateMazeLocs() 
 
-a = imgprocess.imageProcess()
+    numCorrect = 0
+    numMazes = 6 * len(mazes[0])
 
-for row in range(2):
-    for maze in mazes[row]:
-        img = cv2.resize(robot.captureImage(), ( 864, 648 ))
-        cv2.imwrite('temp_img.png', img)
-        print a.findOpening('temp_img.png')
+    a = imgprocess.imageProcess()
 
-        result = input("Is this target correct?")
-        print result
+    for row in range(2):
+        for maze in mazes[row]:
+            img = cv2.resize(robot.captureImage(), ( 864, 648 ))
+            cv2.imwrite('temp_img.png', img)
+            targets = a.findOpening('temp_img.png')
 
-        if result == "y":
-            
-            numCorrect = numCorrect + 1
-            # cv2.destroyAllWindows()
-        # else:
-            # cv2.destroyAllWindows()
+            counter = 0
+            while not targets or not len(targets) == 1:
+                
+                if counter > 10:
+                    print "Problem unsolved after 10 attempts"
+                    robot.release()
+                
+                print "Problem finding Opening. Trying again..."
+                
+                # Jiggle robot
+                xPos, yPos, z0Pos, z1Pos, z2Pos = robot.getCurrentPosition()
+                dx = 10 * random.random()
+                dy = 10 * random.random()
+                robot.moveTo(xPos + dx, yPos + dy, z0Pos, z1Pos, z2Pos)
+                robot.moveTo(xPos - dx, yPos - dy, z0Pos, z1Pos, z2Pos)
 
-        robot.moveTo((maze[0], maze[1], 0, 30, 0))
+                img = cv2.resize(robot.captureImage(), ( 864, 648 ))
+                cv2.imwrite('temp_img.png', img)
+                targets = a.findOpening('temp_img.png')
 
-print str(numCorrect) + " correct out of " + str(numMazes)
-robot.release()
+                counter += 1
+
+            result = input("Is this target correct?")
+            print result
+
+            if result == "y":
+                
+                numCorrect = numCorrect + 1
+                # cv2.destroyAllWindows()
+            # else:
+                # cv2.destroyAllWindows()
+
+            robot.moveTo((maze[0], maze[1], 0, 30, 0))
+
+    print str(numCorrect) + " correct out of " + str(numMazes)
+    robot.release()
