@@ -21,25 +21,17 @@ designed a robot with a multi-purpose end effector, which has:
 
 3. An LED ring to illuminate the space underneath the camera
 
-4. The two manipulators (fly and small part) operate by way of a Venturi tube, and are independently controlled.
-   Two solenoid valves control the flow of compressed air to each manipulator, and two solenoid actuators toggle
-   between vacuum and positive air pressure.
-
-5. The two manipulators can each rotate around the Z axis (by way of small, hollow shaft stepper motors).
+4. The two manipulators (fly and small part) can pick up and put down objects, and are independently controlled.
+   Four solenoid valves control the flow of compressed air and vacuum to each manipulator.
 
 Control of the robot is by way of a PC, running Windows.
 
-So there are seven different motors to control in the system (X, Y, 3x Z axes, plus the two rotating axes for the manipulators).
+So there are five different motors to control in the system (X, Y, and 3x Z axes), and four devices to turn on/off
+(the four solenoid valves).
 
-There are two different motor control schemes in use. The X, Y and two rotating axes are all stepper motors,
-and are controlled by a single printrboard (http://reprap.org/wiki/Printrboard). The printrboard connects to
-the PC by USB, and appears as a COM port to the operating system. The printrboard uses G-Code to communicate
-with the PC (http://reprap.org/wiki/G-code).
+We use a 5-axis SmoothieBoard (http://smoothieware.org/smoothieboards) to control the 5 motors, and also the
+4 solenoid valves (by way of load switches). The Smoothie connects to the PC by USB, and appears as a COM port
+to the operating system. It uses G-Code to communicate with the PC (http://reprap.org/wiki/G-code).
 
-The three Z axes are DC motors with encoders, and are controlled by Synaptron boards
-(http://www.solutions-cubed.com/products-page/motor-controller/synaptron-micro-1/
-with documentation here: http://solutions-cubed.com/app-notes-downloads/#SYNAPU), one per axis. The three Synaptron boards
-are all mounted to a carrier circuit board, which also includes a USB-to-serial converter (http://www.solutions-cubed.com/products-page/protocol-converter-interface/bm010/).
-Thus, that carrier board also presents itself to the PC as a COM port. The communications protocol is different
-(i.e. not G-Code). It is specific to the Synaptron boards, and is documented online (see above link).
-
+The Python code in this repository translates API calls into the appropriate G-code commands and sends them to
+the Smoothie (and waits for replies, as appropriate).
