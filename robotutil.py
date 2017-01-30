@@ -129,7 +129,7 @@ class santaFe:
 
     isInitialized = False
 
-    travelSpeed = 10000
+    travelSpeed = 5000
     acceleration = 200
 
     # Configuration defaults
@@ -261,6 +261,182 @@ class santaFe:
         self.currentPosition[0] = pt[0]
         self.currentPosition[1] = pt[1]
 
+    def moveXYSpd(self, pt):
+        if (len(pt) != 3):
+            print 'Error: missing speed parameter'
+            return
+
+        if ( self.isPtInBounds((pt[0], pt[1], 0., 0., 0.)) == False ):
+            print 'Error: point out of bounds (less than zero, greater than maxExtents)'
+            return
+
+        cmd = "G01 X{0[0]} Y{0[1]} F{0[2]}\n".format(pt)
+        self.smoothie.sendSyncCmd(cmd)
+        self.currentPosition[0] = pt[0]
+        self.currentPosition[1] = pt[1]
+
+    def rotate(self, pt):
+        print pt
+        if (len(pt) != 7):
+            print 'Error: incorrect coordinate string or missing rotation parameters. Dropping rotate instruction'
+            return
+
+        cmd = "G02 X{0[0]} Y{0[1]} Z{0[2]} A{0[3]} B{0[4]} I{0[5]} J{0[6]}\n".format(pt)
+        self.smoothie.sendSyncCmd(cmd)
+        self.dwell(1)
+        self.currentPosition = pt
+        return
+    
+    def moveCirc(self, r, n, endpos, spd, rest, full=False):        #moveCirc2 works better!
+    ## circular motion around current point; r: radius, n: amount of points (fine-ness),
+    ## endpos: movement end point in multiples of pi, spd; speed, rest: time between movements (fine-ness)
+        self.dwell(t=500) # to get accurate starting point
+        curcircle = np.arange(n*2).reshape((n, 2))
+        XYPos = self.getCurrentPosition()
+        CircStart = XYPos[0:2]   # may be interesting in other functions
+        tempPos = XYPos[0:2]
+        tempPosSpd = [0,1,2]
+        for x in range(0,n):
+            curcircle[x,:] = math.sin(endpos*math.pi/n*x)*r, math.cos(endpos*math.pi/n*x)*r
+            changeX = (curcircle[x,0] - curcircle[x-1,0])
+            changeY = (curcircle[x,1] - curcircle[x-1,1])
+            if x <= 2:  # Removes large first .sin change in X pos
+                tempPos = tempPos
+            else:
+                tempPos[0] += changeX
+                tempPos[1] += changeY
+            tempPosSpd[0] = tempPos[0]
+            tempPosSpd[1] = tempPos[1]
+            tempPosSpd[2] = spd
+            if x >= n-1:
+                tempPosSpd[2] = self.travelSpeed   # resets speed (carries over in future commands)
+            self.moveXYSpd(pt=tempPosSpd)
+            self.dwell(rest)
+        CircEnd = tempPos
+        if full!= False:
+            self.moveXY(pt=CircStart)
+        self.dwell(t=200)   # ensures plate is still
+        return CircEnd
+
+    def moveCirc2(self, mid, r, n=360, startpos=0, endpos=360, spd=500, rest=5, z=53, full=True, retreatZ=10):       #also lowers onto z height
+        careful = 0     # failsafe when already starts lowered
+        if spd >= 2001:
+            print 'adjusting speed to safe level 1000 ...'
+            spd = 1000
+        while startpos > 360:
+            startpos = startpos - 360
+            print 'startpos corrected to:', startpos
+        while endpos > 360:
+            endpos = endpos - 360
+            print 'endpos corrected to:', endpos
+        deg = np.ones((n+1,3))
+        for x in range(0,len(deg)):
+            deg[x,:] = (math.sin(2*math.pi/n*x)*r)+mid[0], (math.cos(2*math.pi/n*x)*r)+mid[1], spd
+            #print 'calculation for degree', x, ': ', deg[x,:]
+        #print 'calculated points as', deg
+        if endpos - startpos < 0:
+            step = -1
+            offset = -2
+        else:
+            step = 1
+            offset = 2
+        #print 'made it to loop with step:', step, 'and offset:', offset
+        for i in range(startpos, endpos+1, step):       # loop that performs the circular movement and lowering only on iteration 1
+            if careful != 1:
+                if step == 1 and i >= endpos-offset:
+                    deg[:,2] = self.travelSpeed     # resets slow speed to config normal
+                    print 'speed reset to:', self.travelSpeed   # Has to be before move command to remain in effect
+                elif step == -1 and i <= endpos-offset:
+                    deg[:,2] = self.travelSpeed
+                    print 'speed reset to:', self.travelSpeed
+                self.moveXYSpd(pt=deg[i,:])
+                self.dwell(rest)
+                if i == startpos:
+                    self.dwell(1)  # just a tiny buffer before lowering
+                    #print 'waiting to lower...'
+                XYpos = self.getCurrentPosition()
+                print i, XYpos, deg[i,0], deg[i,1]
+                if i == startpos and (XYpos[0] - deg[startpos,0] <= 1) and (XYpos[1] - deg[startpos,1] <= 1):   # only lower on first iteration and if degrees match
+                    print 'lowering...'
+                    self.dwell(1)
+                    self.moveZ(pt=[XYpos[0],XYpos[1],0,0,z-9]) # lowers to 9 units above detected opening
+                    self.dwell(1) # give time before the loop
+                    print self.getCurrentPosition()
+                    #self.moveTo(pt=[XYpos[0],XYpos[1],0,0,z-9])        # one of these gets skipped for some reason..
+                    #self.dwell(1) # give time before the loop
+                    #print self.getCurrentPosition()
+                    for j in range(1, 11):     #carefully lower into opening and start at 0 just to also check current limit
+                        self.dwell(1)
+                        self.moveZ(pt=[XYpos[0],XYpos[1],0,0,(z-9)+j])
+                        #print 'lowering step:', j, 'ends at', self.getCurrentPosition()
+                        careful = self.getLimit()
+                        if careful == 1:
+                            self.moveZ(pt=[XYpos[0],XYpos[1],0,0,retreatZ])
+                            #print 'should be retreating...'  
+                            #print 'firstbreak' 
+                            break
+            elif careful != 0:
+                self.moveZ(pt=[XYpos[0],XYpos[1],0,0,retreatZ])
+                #print 'secbreak'
+                break      #super overkill but more secure
+        if careful != 1 and full == True:
+            self.moveXYSpd(pt=deg[endpos,:])
+            XYpos = deg[endpos,0:2]
+            self.dwell(1)
+        elif careful != 0:
+            self.moveZ(pt=[XYpos[0],XYpos[1],0,0,retreatZ])
+        return {'endXY':XYpos, 'endDeg':endpos, 'oldMid': mid, 'limit': careful, 'startDeg': startpos}
+
+
+    def tryOpening(self, mid, r, n=360, startpos=0, endpos=360, spd=1000, rest=5, z=53, full=True, retreatZ=10):
+        tryspd = spd
+        trymid = mid
+        trystart = startpos
+        tryend = endpos
+        unsure=0
+        radi = r
+        #print 'first try...'
+        print 'trying radius:', r
+        trylower = self.moveCirc2(mid=trymid, r=radi, n=360, startpos=trystart, endpos=tryend, spd=tryspd, rest=5, z=53, full=True, retreatZ=42)
+        startposFirst = startpos
+        #print 'startposFirst is:', startposFirst
+        while trylower['limit'] == 1 and unsure != 1:
+            for cw in xrange(2,10,2):
+                if trylower['limit'] == 1:
+                    print 'trying 2 degrees further clockwise...'
+                    startpos = startpos + cw
+                    trylower = self.moveCirc2(mid=trymid, r=radi, n=360, startpos=startpos, endpos=tryend, spd=tryspd, rest=5, z=53, full=True, retreatZ=42)
+                else:
+                    break
+            startpos = startposFirst
+            #print 'now trying counterclockwise at', startpos, 'which should match', startposFirst
+            for ccw in xrange(2,10,2):       # can skip 0 degree offset bc clockwise covered it
+                if trylower['limit'] == 1:
+                    print 'trying 2 degrees further counter-clockwise...'
+                    startpos = startpos - ccw
+                    trylower = self.moveCirc2(mid, r=radi, n=360, startpos=startpos, endpos=tryend, spd=tryspd, rest=5, z=53, full=True, retreatZ=42)
+                else:
+                    break
+            if trylower['limit'] == 1:
+                print 'could not find opening - detecting anew...'
+                unsure = 1
+        return trylower
+
+
+
+
+    def getLimit(self):     # if this breaks look at position of limit max B in the string!
+        templimit = str(self.smoothie.sendCmdGetReply("M119\n").split(' '))
+        #print templimit
+        limit = int(templimit[150])
+        #print 'templimit is', templimit
+        if limit == 1:
+            #self.home()
+            print 'limit is', limit, '!'
+            #self.smoothie.sendCmd("M999\n")
+        return limit
+
+
     def moveZ(self, pt):
         if (len(pt) != 5):
             print 'Error: incorrect coordinate string. Dropping moveZ instruction'
@@ -272,15 +448,16 @@ class santaFe:
 
         cmd = "G01 Z{0[2]} A{0[3]} B{0[4]}\n".format(pt)
         self.smoothie.sendSyncCmd(cmd)
-        self.currentPosition[2] = pt[2]
-        self.currentPosition[3] = pt[3]
-        self.currentPosition[4] = pt[4]
+        self.dwell(1)
+
+        self.currentPosition = pt
+
         return
 
 
     def moveTo(self, pt):
         if (len(pt) != 5):
-            print 'Error: incorrect coordinate string. Dropping moveTo instruction'
+            print 'Error: incorrect coordinate string:', pt, ' Dropping moveTo instruction'
             return
 
         if ( self.isPtInBounds(pt) == False ):
@@ -288,6 +465,22 @@ class santaFe:
             return
 
         cmd = "G01 X{0[0]} Y{0[1]} Z{0[2]} A{0[3]} B{0[4]}\n".format(pt)
+        self.smoothie.sendSyncCmd(cmd)
+        self.dwell(1)
+
+        self.currentPosition = pt
+        return
+
+    def moveToSpd(self, pt):
+        if (len(pt) != 6):
+            print 'Error: incorrect coordinate string. Dropping moveTo instruction'
+            return
+        cord = pt[0:5]
+        if ( self.isPtInBounds(cord) == False ):
+            print 'Error: point out of bounds (less than zero, greater than maxExtents)'
+            return
+
+        cmd = "G01 X{0[0]} Y{0[1]} Z{0[2]} A{0[3]} B{0[4]} F{0[5]}\n".format(pt)
         self.smoothie.sendSyncCmd(cmd)
         self.dwell(1)
 
@@ -477,6 +670,143 @@ class santaFe:
 
                 return coords
         return None
+
+    def findOpening(self, image, slowmode=False):
+        result = []
+        MAX_SIZE = 95  # range of size in pixels of the circle lid hole
+        MIN_SIZE = 60
+        #cv2.namedWindow("output", cv2.WINDOW_NORMAL)
+        #cv2.imshow("thresh", thresh)
+        #cv2.waitKey(0)
+        startp1 = 119
+        startp2 = 147
+        detect = 0
+        if slowmode == False:
+            image = cv2.imread(image)
+            #cv2.imshow("output", image)
+            #cv2.waitKey()
+            image = cv2.resize(image, (1280, 960))
+            #cv2.imshow("resized", image)
+            #cv2.waitKey()
+            output = image.copy()
+            gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+            #cv2.imshow("gray", gray)
+            #cv2.waitKey(0)
+            thresh = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2)
+            while detect == 0:      # decrease sensitivity until at least one circle is found
+                print 'sensitivity lowered to:', startp2
+                circles = cv2.HoughCircles(thresh,cv2.cv.CV_HOUGH_GRADIENT,1.6,50, param1=startp1,param2=startp2,minRadius=MIN_SIZE,maxRadius=MAX_SIZE)
+                 ## change param 1 and 2 for more-less circles
+                if  circles is not None:
+                    # convert the (x, y) coordinates and radius of the circles to integers
+                    circles = np.round(circles[0, :]).astype("int")
+                    print 'detected', len(circles), 'circles'
+                    # loop over the (x, y) coordinates and radius of the circles
+                    for i in range(0,len(circles)): 
+                         # draw the circle in the output image, then draw a rectangle
+                        # corresponding to the center of the circle
+                        cv2.circle(output, (circles[i,0], circles[i,1]), circles[i,2], (0, 255, 0), 4)
+                        cv2.rectangle(output, (circles[i,0] - 5, circles[i,1] - 5), (circles[i,0] + 5, circles[i,1] + 5), (0, 128, 255), -1)
+                    if len(circles) == 1:
+                        detect = 1
+                    elif startp2 > 100 and len(circles) > 1:     #probably not starting to find only one circle
+                        startp2 = startp2 - 3
+                    elif startp2 <= 100 or len(circles) > 1:
+                        detect = 1      # to get out if too many circles get found repeatedly -- unlikely to result in wrong angle as it needs validation
+                else:
+                    startp2 = startp2 - 3       # get less sensitive if no circles were found
+                    #print 'reducing sensitivity to...', startp2
+        elif slowmode == True:      # Improves findOpening on the off-chance that something wrong in the image processing
+            oldcircles = np.zeros((1,3), dtype=np.int)
+            certain = 0
+            while certain != 1:
+                detect = 0
+                while detect == 0:      # decrease sensitivity until at least one circle is found
+                    image2 = cv2.imread(image)
+                    image3 = cv2.resize(image2, (1280, 960))
+                    output = image3.copy()
+                    gray = cv2.cvtColor(image3, cv2.COLOR_BGR2GRAY)
+                    thresh = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2)
+                    circles = cv2.HoughCircles(thresh,cv2.cv.CV_HOUGH_GRADIENT,1.6,50, param1=startp1,param2=startp2,minRadius=MIN_SIZE,maxRadius=MAX_SIZE)
+                    if circles is not None:
+                        circles = np.round(circles[0, :]).astype("int")
+                        print 'detected ',len(circles), 'circles'
+                        detect = 1
+                        if oldcircles[0,2] != 0:
+                            if (oldcircles[0,0] - circles[0,0]) <= 30 and (oldcircles[0,1] - circles[0,1]) <= 30 and (oldcircles[0,2] - circles[0,2]) <= 20:
+                                certain = 1
+                                print circles, 'found NOT different from', oldcircles
+                            else:
+                                print circles, 'found different from', oldcircles
+                                oldcircles = circles
+                        else:
+                            oldcircles = circles
+                    else:
+                        startp2 = startp2 - 3       # get less sensitive if no circles were found
+                        #print 'reducing sensitivity...'
+    # show the output image
+        #cv2.imshow("output", output)
+        #cv2.waitKey(0)
+        return circles
+
+    # Returns degrees of a point's coordinates relative to the image midpoint (the opening)
+    def getDegs(self, img, img_width=1280, img_height=960):
+        imgmid = [img_width/2, img_height/2]
+        if len(img[:,1]) >= 2 and not (img[0,0] - img[1,0] >= 150) and not (img[0,1] - img[1,1] >= 150):    # allows 2 close circles and takes mean coords
+            img[0,0] = (img[0,0] + img[1,0])/2
+            img[0,1] = (img[0,1] + img[1,1])/2
+            print 'correcting...'
+        dx = img[0,0] - imgmid[0]
+        #print 'x difference:', img[0,0], dx
+        dy = (img_height - img[0,1]) - imgmid[1]
+        #print 'y difference:', img[0,1], dy
+        rads = math.atan2(-dy,dx)
+        rads %= 2*math.pi
+        degs = math.degrees(rads)
+        degs = (degs-90)* (-1)
+        if degs <= 0:       # ghettomath but works out
+            degs = 360 + degs
+        if degs <= 180:
+            degs = (degs - 180) * (-1)
+        elif degs >= 180 and degs <= 360:
+            degs = ((degs - 360) * (-1)) + 180
+        print 'detected at', degs, 'degrees'
+        return degs
+
+    # Combines findOpening and getDegs
+    def findDegs(self, slowmode=True, precision=4):
+        if slowmode == True:
+            certain = 0
+            while certain != 1:
+                tempdeg = np.arange(2)
+                #print 'at start tempdeg is', tempdeg
+                for i in range(0,2):
+                    self.light(True)
+                    time.sleep(0.2)
+                    self.cam.start_live()
+                    self.cam.snap_image()
+                    self.cam.save_image(''.join(['curImage.jpg']), 1, jpeq_quality=100)
+                    self.cam.stop_live()
+                    self.light(False)
+                    img = self.findOpening('curImage.jpg', slowmode=False)
+                    tempdeg[i] = self.getDegs(img)
+                #    print 'after loop tempdeg is', tempdeg
+                if abs(tempdeg[0] - tempdeg[1]) <= precision:
+                    certain = 1
+                    print 'final degree decision is', np.mean(tempdeg)
+                    return np.mean(tempdeg)
+        elif slowmode == False:
+            self.light(True)
+            time.sleep(0.2)
+            self.cam.start_live()
+            self.cam.snap_image()
+            self.cam.save_image(''.join(['curImage.jpg']), 1, jpeq_quality=100)
+            self.cam.stop_live()
+            self.light(False)
+            img = self.findOpening('curImage.jpg', slowmode=False)
+            tempdeg = self.getDegs(img)
+            return tempdeg
+
 
 # Set up close-up camera
 def cameraInit():
