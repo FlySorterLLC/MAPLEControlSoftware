@@ -2,22 +2,15 @@ import cv2
 import numpy as np
 import time
 import robotutil
+import Workspace1
 import math
+import random as rand
 import matplotlib.pyplot as plt
+import ConfigParser
 
 robot = robotutil.santaFe("SantaFe.cfg")
-
+robot.smoothie.sendCmd("M999")
+robot.flyManipAir(False)
 robot.home()
-robot.moveXY(pt=[305, 240])
-robot.dwell(t=500)
-XYpos = robot.getCurrentPosition()
-robot.moveZ(pt=[XYpos[0],XYpos[1],0,45,0])
 
-iterations = 500
-tempdeg = np.arange(iterations)
-for i in range(iterations):
-	tempdeg[i] = robot.findDegs(slowmode=True)
-
-x = np.arange(iterations)
-plt.plot(x, tempdeg)
-plt.show()
+robot.flyManipAir(True)
