@@ -8,6 +8,9 @@
 ## By: Will Long
 ## MRU: Oct 5 2016
 
+import sys
+sys.path.append('/usr/local/lib/python2.7/site-packages')
+
 import cv2
 import numpy as np
 import time
@@ -62,6 +65,7 @@ class imageProcess:
         MIN_SIZE = 35
         
         image = cv2.imread(image)
+        image = cv2.resize(image, (850, 625))   # (width, height)
         output = image.copy()
 
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
@@ -166,7 +170,7 @@ a = imageProcess()
 
 # cv2.imshow("Processed Lid", a.watershed("img11.png"))
 #print a.findOpening("temp_img.png")
-# print a.findOpening("img1.png")
+print a.findOpening("curImage.jpg")
 # print a.findOpening("img2.png")
 # print a.findOpening("img3.png")
 # print a.findOpening("img4.png")
