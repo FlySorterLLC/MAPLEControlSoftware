@@ -203,7 +203,7 @@ a = imageProcess()
 
 # cv2.imshow("Processed Lid", a.watershed("img11.png"))
 #print a.findOpening("temp_img.png")
-a.findOpening2("curImage.jpg")
+a.findOpening2("temp_img.png")
 # print a.findOpening("img2.png")
 # print a.findOpening("img3.png")
 # print a.findOpening("img4.png")
