@@ -16,6 +16,7 @@ import glob
 import serial
 import time
 import ConfigParser
+import random as rand
 
 import pyicic.IC_ImagingControl
 
@@ -238,14 +239,20 @@ class santaFe:
         return
 
     def getCurrentPosition(self):
-        positions = self.smoothie.sendCmdGetReply("M114.2\n").split(' ')
         # M114.2 returns string like: "ok MCS: X:0.0000 Y:0.0000 Z:0.0000 A:0.0000 B:0.0000"
-        xPos  = float(positions[2].split(':')[1])
-        yPos  = float(positions[3].split(':')[1])
-        z0Pos = float(positions[4].split(':')[1])
-        z1Pos = float(positions[5].split(':')[1])
-        z2Pos = float(positions[6].split(':')[1])
-        return np.array( [ xPos, yPos, z0Pos, z1Pos, z2Pos ] )
+		while True:
+			try:
+				positions = self.smoothie.sendCmdGetReply("M114.2\n").split(' ')
+				xPos  = float(positions[2].split(':')[1])
+				break
+			except:
+				print 'Error: retrying to get position'
+		xPos  = float(positions[2].split(':')[1])
+		yPos  = float(positions[3].split(':')[1])
+		z0Pos = float(positions[4].split(':')[1])
+		z1Pos = float(positions[5].split(':')[1])
+		z2Pos = float(positions[6].split(':')[1])
+		return np.array( [ xPos, yPos, z0Pos, z1Pos, z2Pos ] )
 
     def moveXY(self, pt):
         if (len(pt) != 2):
@@ -318,11 +325,11 @@ class santaFe:
         self.dwell(t=200)   # ensures plate is still
         return CircEnd
 
-    def moveCirc2(self, mid, r, n=360, startpos=0, endpos=360, spd=500, rest=5, z=53, full=True, retreatZ=10):       #also lowers onto z height
+    def moveCirc2(self, mid, r, n=360, startpos=0, endpos=360, spd=1500, rest=100, z=53, full=True, retreatZ=10, descendZ=9):       #also lowers onto z height
         careful = 0     # failsafe when already starts lowered
         if spd >= 2001:
-            print 'adjusting speed to safe level 1000 ...'
-            spd = 1000
+            print 'adjusting speed to safe level 2000 ...'	# locks up on cross-axis motion and screws up positioning	
+            spd = 2000
         while startpos > 360:
             startpos = startpos - 360
             print 'startpos corrected to:', startpos
@@ -345,29 +352,29 @@ class santaFe:
             if careful != 1:
                 if step == 1 and i >= endpos-offset:
                     deg[:,2] = self.travelSpeed     # resets slow speed to config normal
-                    print 'speed reset to:', self.travelSpeed   # Has to be before move command to remain in effect
+                    #print 'speed reset to:', self.travelSpeed   # Has to be before move command to remain in effect
                 elif step == -1 and i <= endpos-offset:
                     deg[:,2] = self.travelSpeed
-                    print 'speed reset to:', self.travelSpeed
+                    #print 'speed reset to:', self.travelSpeed
                 self.moveXYSpd(pt=deg[i,:])
                 self.dwell(rest)
                 if i == startpos:
-                    self.dwell(1)  # just a tiny buffer before lowering
+                    self.dwell(10)  # just a tiny buffer before lowering
                     #print 'waiting to lower...'
                 XYpos = self.getCurrentPosition()
-                print i, XYpos, deg[i,0], deg[i,1]
+                #print i, XYpos, deg[i,0], deg[i,1]
                 if i == startpos and (XYpos[0] - deg[startpos,0] <= 1) and (XYpos[1] - deg[startpos,1] <= 1):   # only lower on first iteration and if degrees match
-                    print 'lowering...'
-                    self.dwell(1)
-                    self.moveZ(pt=[XYpos[0],XYpos[1],0,0,z-9]) # lowers to 9 units above detected opening
+                    #print 'lowering...'
+                    self.dwell(10)
+                    self.moveZ(pt=[XYpos[0],XYpos[1],0,0,z-descendZ]) # lowers to 9 units above detected opening
                     self.dwell(1) # give time before the loop
-                    print self.getCurrentPosition()
+                    #print self.getCurrentPosition()
                     #self.moveTo(pt=[XYpos[0],XYpos[1],0,0,z-9])        # one of these gets skipped for some reason..
                     #self.dwell(1) # give time before the loop
                     #print self.getCurrentPosition()
-                    for j in range(1, 11):     #carefully lower into opening and start at 0 just to also check current limit
+                    for j in range(1, descendZ+2):     #carefully lower into opening and start at 0 just to also check current limit
                         self.dwell(1)
-                        self.moveZ(pt=[XYpos[0],XYpos[1],0,0,(z-9)+j])
+                        self.moveZ(pt=[XYpos[0],XYpos[1],0,0,(z-descendZ)+j])
                         #print 'lowering step:', j, 'ends at', self.getCurrentPosition()
                         careful = self.getLimit()
                         if careful == 1:
@@ -388,33 +395,33 @@ class santaFe:
         return {'endXY':XYpos, 'endDeg':endpos, 'oldMid': mid, 'limit': careful, 'startDeg': startpos}
 
 
-    def tryOpening(self, mid, r, n=360, startpos=0, endpos=360, spd=1000, rest=5, z=53, full=True, retreatZ=10):
+    def tryOpening(self, mid, r, n=360, startpos=0, endpos=360, spd=1000, rest=5, z=53, full=True, retreatZ=10, descendZ=9):
         tryspd = spd
         trymid = mid
         trystart = startpos
         tryend = endpos
+        tryz = z
         unsure=0
         radi = r
         #print 'first try...'
-        print 'trying radius:', r
-        trylower = self.moveCirc2(mid=trymid, r=radi, n=360, startpos=trystart, endpos=tryend, spd=tryspd, rest=5, z=53, full=True, retreatZ=42)
+        trylower = self.moveCirc2(mid=trymid, r=radi, n=360, startpos=trystart, endpos=tryend, spd=tryspd, rest=5, z=tryz, full=True, retreatZ=42, descendZ=descendZ)
         startposFirst = startpos
         #print 'startposFirst is:', startposFirst
         while trylower['limit'] == 1 and unsure != 1:
             for cw in xrange(2,10,2):
                 if trylower['limit'] == 1:
-                    print 'trying 2 degrees further clockwise...'
+                    #print 'trying 2 degrees further clockwise...'
                     startpos = startpos + cw
-                    trylower = self.moveCirc2(mid=trymid, r=radi, n=360, startpos=startpos, endpos=tryend, spd=tryspd, rest=5, z=53, full=True, retreatZ=42)
+                    trylower = self.moveCirc2(mid=trymid, r=radi, n=360, startpos=startpos, endpos=tryend, spd=tryspd, rest=5, z=tryz, full=True, retreatZ=42, descendZ=descendZ)
                 else:
                     break
             startpos = startposFirst
             #print 'now trying counterclockwise at', startpos, 'which should match', startposFirst
             for ccw in xrange(2,10,2):       # can skip 0 degree offset bc clockwise covered it
                 if trylower['limit'] == 1:
-                    print 'trying 2 degrees further counter-clockwise...'
+                    #print 'trying 2 degrees further counter-clockwise...'
                     startpos = startpos - ccw
-                    trylower = self.moveCirc2(mid, r=radi, n=360, startpos=startpos, endpos=tryend, spd=tryspd, rest=5, z=53, full=True, retreatZ=42)
+                    trylower = self.moveCirc2(mid, r=radi, n=360, startpos=startpos, endpos=tryend, spd=tryspd, rest=5, z=tryz, full=True, retreatZ=42, descendZ=descendZ)
                 else:
                     break
             if trylower['limit'] == 1:
@@ -422,8 +429,66 @@ class santaFe:
                 unsure = 1
         return trylower
 
+    def lowerCare(self, z, descendZ=9, retreatZ=18):		# z: how low to move; descendZ: how many steps are done carefully to reach z; retreatZ: RELATIVE height retreat upon hit
+		if z > 55 or z < 0:
+			print 'Z not in range 0,55 - skipping...'
+			return
+		if descendZ > z:
+			print 'descendZ larger than Z - correcting...'
+			descendZ = z-1
+		posbegin = self.getCurrentPosition()
+		self.moveZ(pt=[posbegin[0],posbegin[1],0,0,z-descendZ])
+		for i in range(1, descendZ+2):    
+			self.dwell(1)
+			self.moveRel(pt=[0,0,0,0,1])
+			#print 'lowering step:', i, 'ends at', self.getCurrentPosition()
+			careful = self.getLimit()
+			if careful == 1:
+				self.moveRel(pt=[0,0,0,0,-retreatZ])
+				break
+		posend = self.getCurrentPosition
+		return {'pos.begin': posbegin, 'pos.end': posend, 'limit': careful}
 
+    def homeWithdraw(self, homecoordX, homecoordY, refptX='N', refptY='N', carefulZ=9, vacBurst=1, homeZ=45):
+        if refptX != 'N':
+	        self.moveToSpd(pt=[float(refptX), float(refptY), 0, 0, 10, 5000])       # Allgin to outermost flyhome to prevent tripping
+	        self.dwell(t=1)
+        self.moveToSpd(pt=[float(homecoordX), float(homecoordY), 0, 0, 10, 5000])        # Go to actual home
+        self.dwell(t=1)
+        self.flyManipAir(True)
+        trylowerHome = self.lowerCare(z=homeZ, descendZ=carefulZ, retreatZ=carefulZ)      # Move into home - check Z height!
+        if trylowerHome['limit'] == 0:
+            self.dwell(t=1)
+            for b in range(0,vacBurst):
+                self.flyManipAir(True)
+                self.dwell(t=rand.choice(range(2,4)))
+                self.flyManipAir(False)
+                self.dwell(t=rand.choice(range(2,4)))
+            self.smallPartManipVac(True)
+            self.dwell(t=2000)
+            self.moveRel(pt=[0, 0, 0, 0, -homeZ])
+            self.dwell(t=10)
+        return {'homeX': homecoordX, 'homeY': homecoordY, 'limit': trylowerHome['limit']}
 
+    def homeDeposit(self, homecoordX, homecoordY, refptX='N', refptY='N', carefulZ=9, vacBurst=1, homeZ=44):
+    	if refptX != 'N':
+	        self.moveToSpd(pt=[float(refptX), float(refptY), 0, 0, 10, 5000])       # Allgin to outermost flyhome to prevent tripping
+	        self.dwell(t=1)
+        self.moveToSpd(pt=[float(homecoordX), float(homecoordY), 0, 0, 10, 5000])        # Go to actual home
+        self.dwell(t=1)
+        trylowerHome = self.lowerCare(z=homeZ, descendZ=carefulZ, retreatZ=carefulZ)      # Move into home - check Z height!
+        if trylowerHome['limit'] == 0:
+            self.dwell(t=1)
+            self.smallPartManipVac(False)
+            for b in range(0,vacBurst):
+                self.flyManipAir(True)
+                self.dwell(t=rand.choice(range(5,6)))
+                self.flyManipAir(False)
+                self.dwell(t=rand.choice(range(5,6)))
+            self.dwell(t=50)
+            self.moveRel(pt=[0, 0, 0, 0, -homeZ])
+            self.dwell(t=10)
+        return {'homeX': homecoordX, 'homeY': homecoordY, 'limit': trylowerHome['limit']}
 
     def getLimit(self):     # if this breaks look at position of limit max B in the string!
         templimit = str(self.smoothie.sendCmdGetReply("M119\n").split(' '))
@@ -489,7 +554,7 @@ class santaFe:
 
     def moveRel(self, pt):
         #print "Curr pos:", self.currentPosition
-        self.moveTo(self.currentPosition + pt)
+        self.moveTo( map(sum,zip(self.currentPosition, pt)) )
 
     def moveXYList(self, ptList):
         # TODO: check shape of list
@@ -513,9 +578,14 @@ class santaFe:
             return True
 
     def dwell(self, t):
-        cmd = "G04 P{0}\n".format(t)
-        self.smoothie.sendSyncCmd(cmd)
-        return
+		while True:
+			try:
+				cmd = "G04 P{0}\n".format(t)
+				self.smoothie.sendSyncCmd(cmd)
+				break
+			except:
+				print 'Error: retrying to send dwell command'
+		return
 
     def light(self, onOff = False):
         if ( onOff == True ):
@@ -533,7 +603,7 @@ class santaFe:
         self.smoothie.sendCmd(cmd)
         return
 
-    def flyManipVac(self, onOff = False):
+    def flyManipVac(self, onOff = False):		# rerouted pins to smallPart vacuum
         if (onOff == True):
             cmd = "M44\n"
         else:
@@ -549,7 +619,7 @@ class santaFe:
         self.smoothie.sendCmd(cmd)
         return
 
-    def smallPartManipVac(self, onOff = False):
+    def smallPartManipVac(self, onOff = False):		# rerouted to fly vacuum
         if (onOff == True):
             cmd = "M40\n"
         else:
@@ -645,41 +715,87 @@ class santaFe:
         self.moveTo(pt2)
         return
 
-    def findFly(self, image):
+	def findFly(self, image):
         # Cribbed from Will's imgprocess script
         # Convert BGR to HSV
-        h, s, v = cv2.split(cv2.cvtColor(image, cv2.COLOR_BGR2HSV))
+		h, s, v = cv2.split(cv2.cvtColor(image, cv2.COLOR_BGR2HSV))
         # Now threshold in the value channel
-        r, mask = cv2.threshold(255-v, 100, 255, cv2.THRESH_BINARY)
+		r, mask = cv2.threshold(255-v, 100, 255, cv2.THRESH_BINARY)
         # Find contours
-        contours, h = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        for c in contours:
-            mmnts = cv2.moments(c)
-            if ( 20000 < mmnts['m00'] < 200000 ):
+		contours, h = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+		for c in contours:
+			mmnts = cv2.moments(c)
+			if ( 20000 < mmnts['m00'] < 200000 ):
                 # Center of contour is m10/m00, m01/m00
                 # We want transform from pixels to mm, using self.FOV
                 # Find the shape of the image
-                (pxHeight, pxWidth) = mask.shape
-                imgCoords = np.array([ int(mmnts['m10'] / mmnts['m00'] ), int( mmnts['m01'] / mmnts['m00']) ], dtype=np.int16)
-                cv2.line(image, tuple(imgCoords - np.array([ 20, 0])), tuple(imgCoords + np.array([ 20, 0])), (0,0,0), 5)
-                cv2.line(image, tuple(imgCoords - np.array([ 0, 20])), tuple(imgCoords + np.array([ 0, 20])), (0,0,0), 5)
-                cv2.line(image, tuple(imgCoords - np.array([ 20, 0])), tuple(imgCoords + np.array([ 20, 0])), (255,255,255), 3)
-                cv2.line(image, tuple(imgCoords - np.array([ 0, 20])), tuple(imgCoords + np.array([ 0, 20])), (255,255,255), 3)
-                coords = np.array([ (mmnts['m10'] / mmnts['m00'] - pxWidth/2.)*self.FOV[0]/pxWidth,
+				(pxHeight, pxWidth) = mask.shape
+				imgCoords = np.array([ int(mmnts['m10'] / mmnts['m00'] ), int( mmnts['m01'] / mmnts['m00']) ], dtype=np.int16)
+				cv2.line(image, tuple(imgCoords - np.array([ 20, 0])), tuple(imgCoords + np.array([ 20, 0])), (0,0,0), 5)
+				cv2.line(image, tuple(imgCoords - np.array([ 0, 20])), tuple(imgCoords + np.array([ 0, 20])), (0,0,0), 5)
+				cv2.line(image, tuple(imgCoords - np.array([ 20, 0])), tuple(imgCoords + np.array([ 20, 0])), (255,255,255), 3)
+				cv2.line(image, tuple(imgCoords - np.array([ 0, 20])), tuple(imgCoords + np.array([ 0, 20])), (255,255,255), 3)
+				coords = np.array([ (mmnts['m10'] / mmnts['m00'] - pxWidth/2.)*self.FOV[0]/pxWidth,
                                     (mmnts['m01'] / mmnts['m00'] - pxHeight/2.)*self.FOV[1]/pxHeight ])
+				return coords
+		return None
 
-                return coords
-        return None
+    def detectFly(self, minpx=40, maxpx=800,showimg=False):
+		self.light(True)
+		time.sleep(0.2)
+		self.light(True)
+		time.sleep(0.2)
+		self.cam.start_live()
+		self.cam.snap_image()
+		self.cam.save_image(''.join(['curImage1.jpg']), 1, jpeq_quality=100)
+		self.cam.stop_live()
+		self.dwell(800)
+		self.cam.start_live()
+		self.cam.snap_image()
+		self.cam.save_image(''.join(['curImage2.jpg']), 1, jpeq_quality=100)
+		self.cam.stop_live()
+		self.light(False)
+		image1 = cv2.imread('curImage1.jpg')
+		image2 = cv2.imread('curImage2.jpg')
+		image1 = cv2.resize(image1, (1280, 960))
+		h1, s1, v1 = cv2.split(cv2.cvtColor(image1, cv2.COLOR_BGR2HSV))
+		image2 = cv2.resize(image2, (1280, 960))
+		h2, s2, v2 = cv2.split(cv2.cvtColor(image2, cv2.COLOR_BGR2HSV))
+		image = cv2.subtract(v1,v2)
+		ret,gray = cv2.threshold(image,25,255,0)
+		gray2 = gray.copy()
+		gray2 = cv2.morphologyEx(gray2, cv2.MORPH_OPEN, np.ones((5,5),np.uint8))
+		gray2 = cv2.Canny(gray2,30,100)
+		gray2 = np.nonzero(gray2)
+		gray2 = len(np.nonzero(gray2)[0])
+		print 'detected', gray2, 'moving pixels.'
+		if showimg == True:
+			cv2.imshow('image', gray2)
+			cv2.waitKey(0)
+		if minpx<gray2<maxpx:
+			return True
+		else:
+			return False
 
-    def findOpening(self, image, slowmode=False):
+    def sweep(self, ptsx, ptsy, camz=40, spd=5000):
+		detectvect = range(len(ptsx))
+		for i in range(len(ptsx)):
+			self.moveToSpd(pt=[float(ptsx[i]), float(ptsy[i]), 0, camz, 0, spd])
+			detectvect[i] = self.detectFly()
+		return np.array(detectvect, dtype = bool)
+
+
+	## Slowmode = False can be used as a show mode of where circles were detected.
+    def findOpening(self, image, slowmode=False, MAX_SIZE=70, MIN_SIZE=60, startp1=119, startp2=150, startp3=2.7):
         result = []
-        MAX_SIZE = 95  # range of size in pixels of the circle lid hole
-        MIN_SIZE = 60
+        #MAX_SIZE = 75  # range of size in pixels of the circle lid hole
+        #MIN_SIZE = 60
         #cv2.namedWindow("output", cv2.WINDOW_NORMAL)
         #cv2.imshow("thresh", thresh)
         #cv2.waitKey(0)
-        startp1 = 119
-        startp2 = 147
+        #tartp1 = 119
+        #startp2 = 147
+        #startp3 = 2.6
         detect = 0
         if slowmode == False:
             image = cv2.imread(image)
@@ -694,13 +810,13 @@ class santaFe:
             #cv2.waitKey(0)
             thresh = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2)
             while detect == 0:      # decrease sensitivity until at least one circle is found
-                print 'sensitivity lowered to:', startp2
-                circles = cv2.HoughCircles(thresh,cv2.cv.CV_HOUGH_GRADIENT,1.6,50, param1=startp1,param2=startp2,minRadius=MIN_SIZE,maxRadius=MAX_SIZE)
+                #print 'sensitivity lowered to:', startp2
+                circles = cv2.HoughCircles(thresh,cv2.cv.CV_HOUGH_GRADIENT,startp3,50, param1=startp1,param2=startp2,minRadius=MIN_SIZE,maxRadius=MAX_SIZE)
                  ## change param 1 and 2 for more-less circles
                 if  circles is not None:
                     # convert the (x, y) coordinates and radius of the circles to integers
                     circles = np.round(circles[0, :]).astype("int")
-                    print 'detected', len(circles), 'circles'
+                    #print 'detected', len(circles), 'circles'
                     # loop over the (x, y) coordinates and radius of the circles
                     for i in range(0,len(circles)): 
                          # draw the circle in the output image, then draw a rectangle
@@ -716,6 +832,8 @@ class santaFe:
                 else:
                     startp2 = startp2 - 3       # get less sensitive if no circles were found
                     #print 'reducing sensitivity to...', startp2
+            #cv2.imshow("gray", output)
+            #cv2.waitKey(0)
         elif slowmode == True:      # Improves findOpening on the off-chance that something wrong in the image processing
             oldcircles = np.zeros((1,3), dtype=np.int)
             certain = 0
@@ -727,7 +845,7 @@ class santaFe:
                     output = image3.copy()
                     gray = cv2.cvtColor(image3, cv2.COLOR_BGR2GRAY)
                     thresh = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2)
-                    circles = cv2.HoughCircles(thresh,cv2.cv.CV_HOUGH_GRADIENT,1.6,50, param1=startp1,param2=startp2,minRadius=MIN_SIZE,maxRadius=MAX_SIZE)
+                    circles = cv2.HoughCircles(thresh,cv2.cv.CV_HOUGH_GRADIENT,startp3,50, param1=startp1,param2=startp2,minRadius=MIN_SIZE,maxRadius=MAX_SIZE)
                     if circles is not None:
                         circles = np.round(circles[0, :]).astype("int")
                         print 'detected ',len(circles), 'circles'
@@ -735,9 +853,9 @@ class santaFe:
                         if oldcircles[0,2] != 0:
                             if (oldcircles[0,0] - circles[0,0]) <= 30 and (oldcircles[0,1] - circles[0,1]) <= 30 and (oldcircles[0,2] - circles[0,2]) <= 20:
                                 certain = 1
-                                print circles, 'found NOT different from', oldcircles
+                                #print circles, 'found NOT different from', oldcircles
                             else:
-                                print circles, 'found different from', oldcircles
+                                #print circles, 'found different from', oldcircles
                                 oldcircles = circles
                         else:
                             oldcircles = circles
@@ -770,11 +888,17 @@ class santaFe:
             degs = (degs - 180) * (-1)
         elif degs >= 180 and degs <= 360:
             degs = ((degs - 360) * (-1)) + 180
-        print 'detected at', degs, 'degrees'
+        #print 'detected at', degs, 'degrees'
         return degs
 
     # Combines findOpening and getDegs
-    def findDegs(self, slowmode=True, precision=4):
+    def findDegs(self, slowmode=True, precision=4, MAX_SIZE=74, MIN_SIZE=62, startp1=119, startp2=147, startp3=2.6):
+    	trymax=MAX_SIZE
+    	trymin=MIN_SIZE
+    	try1 = startp1
+    	try2 = startp2
+    	try3 = startp3
+    	slwmd = slowmode
         if slowmode == True:
             certain = 0
             while certain != 1:
@@ -788,12 +912,12 @@ class santaFe:
                     self.cam.save_image(''.join(['curImage.jpg']), 1, jpeq_quality=100)
                     self.cam.stop_live()
                     self.light(False)
-                    img = self.findOpening('curImage.jpg', slowmode=False)
+                    img = self.findOpening('curImage.jpg', slowmode=slwmd, MAX_SIZE=trymax, MIN_SIZE=trymin, startp1=try1, startp2=try2, startp3=try3)
                     tempdeg[i] = self.getDegs(img)
                 #    print 'after loop tempdeg is', tempdeg
                 if abs(tempdeg[0] - tempdeg[1]) <= precision:
                     certain = 1
-                    print 'final degree decision is', np.mean(tempdeg)
+                    #print 'final degree decision is', np.mean(tempdeg)
                     return np.mean(tempdeg)
         elif slowmode == False:
             self.light(True)
