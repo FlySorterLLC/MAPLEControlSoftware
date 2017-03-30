@@ -165,9 +165,14 @@ Modifier keys:
     # Capture the current image and save it to a file img X.png
     elif( key == ord('c') ):
     	img = cv2.resize(robot.captureImage(), imgSize)
-    	cv2.imwrite("temp_img.png", img)
-    	targets = processor.findOpening("temp_img.png")
-
+    	i = 0
+    	filename = "circlelid" + str(i) + ".png"
+    	while os.path.isfile(filename):
+    		i += 1
+    		filename = "circlelid" + str(i) + ".png"
+    	
+    	cv2.imwrite(filename, img)
+    	targets = processor.findOpening(filename)
         pos = robot.getCurrentPosition()
         if targets:
         	a, b = targets[0]

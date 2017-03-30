@@ -112,11 +112,11 @@ class imageProcess:
         image = cv2.imread(image, 0)
         image = cv2.resize(image, (850, 625))
         template = cv2.imread('template.jpg', 0)
+        template = cv2.resize(template, (100, 100))
+        cv2.imshow("template", template)
 
         w, h = template.shape[::-1]
 
-        # method = eval('cv2.TM_SQDIFF')
-        # print method
         res = cv2.matchTemplate(image, template, eval('cv2.TM_CCORR_NORMED'))
         min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(res)
         print "Accuracy Score: ", max_val
