@@ -65,11 +65,21 @@ class imageProcess:
         MIN_SIZE = 35
         
         image = cv2.imread(image)
+
+        # Resizing the image standardizes image inputs
         image = cv2.resize(image, (850, 625))   # (width, height)
         output = image.copy()
 
+        # Convert to grayscale
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-        thresh = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2)
+        
+        # Apply a strong Gaussian Blur to remove small distractions
+        blur = cv2.GaussianBlur(gray, (11,11),0) 
+
+        # Threshold the image
+        thresh = cv2.adaptiveThreshold(blur, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2)
+        cv2.imshow("Thresh", thresh)
+        
         circles = cv2.HoughCircles(thresh,cv2.cv.CV_HOUGH_GRADIENT,1.3,300,
                                    param1=50,param2=70,minRadius=MIN_SIZE,maxRadius=MAX_SIZE)
 
