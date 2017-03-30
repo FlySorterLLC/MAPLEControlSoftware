@@ -8,7 +8,10 @@ import math
 import cv2
 import random as rand
 import matplotlib.pyplot as plt
+import robotutil
+import time
 
+robot = robotutil.santaFe("SantaFe.cfg")
 
 popsize = 100
 
@@ -24,6 +27,7 @@ population = np.append([popgenes], [fitness], axis=2)
 
 newpop = np.append([popgenes], [fitness], axis=2)		# prepare new generation
 
+robot.smoothie.sendCmd("M999")
 
 def randomizePop(population):
 
@@ -115,7 +119,15 @@ def findOpening(image, gene0, gene1, gene2, gene3, gene4):		# adapted for geneti
     MAX_SIZE = int(round(gene0))  # loads genes into variables; NEEDS INTEGER!
     MIN_SIZE = int(round(gene1))		# NEEDS INTEGER!
     print 'finding openings with gene values', gene0, gene1, gene2, gene3, gene4
-    image = cv2.imread(image)
+    robot.light(True)
+    time.sleep(0.2)
+    robot.cam.start_live()
+    robot.cam.snap_image()
+    robot.cam.save_image(''.join(['curImage.jpg']), 1, jpeq_quality=100)
+    robot.cam.save_image(''.join(['curImage.jpg']), 1, jpeq_quality=100)
+    robot.cam.stop_live()
+    robot.light(False)
+    image = cv2.imread('curImage.jpg')
     output = image.copy()
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     #cv2.imshow("gray", gray)
@@ -165,10 +177,29 @@ def determineFitness(population):
 	print 'fitness is', tempfitness
 	return tempfitness
 
+def determineFitnessDeg(population):
+	tempfitness = 1100		# maximum with one circle is 1000 fitness
+	if population == 'error':
+		tempfitness = 0
+		return tempfitness
+	else:
+		tempfitness = tempfitness - (len(population)*8)		# most weight placed on number of circles
+		print 'fitness after number of circles', tempfitness
+	tempfitness = tempfitness - abs(np.mean(population[:,0]) - 1188)
+	print 'fitness after x', tempfitness
+	tempfitness = tempfitness - abs(np.mean(population[:,1]) - 190)
+	print 'fitness after y', tempfitness
+	tempfitness = tempfitness - abs(np.mean(population[:,2]) - 130)
+	print 'fitness after r', tempfitness
+	if tempfitness < 0:
+		tempfitness = 1		# to set apart from NO circle genes
+	print 'fitness is', tempfitness
+	return tempfitness
+
 def writeFitness(newpop):
 	for i in range(0, popsize):
-		popfind = findOpening('curImage.png', gene0= newpop[0, i, 0], gene1= newpop[0, i, 1], gene2= newpop[0, i, 2], gene3= newpop[0, i, 3], gene4= newpop[0, i, 4])
-		fitness = determineFitness(popfind)
+		popfind = robot.findOpening('curImage.png', MAX_SIZE= newpop[0, i, 0], MIN_SIZE= newpop[0, i, 1], startp1= newpop[0, i, 2], startp2= newpop[0, i, 3], startp3= newpop[0, i, 4] / 10)
+		fitness = determineFitnessDeg(popfind)
 		newpop[0, i, geneamount] = fitness
 		print 'fitness written for individual', i
 		print newpop
@@ -196,7 +227,7 @@ def runGeneration(population, iterations):
 	return fitmax
 
 # Plots fitness by generation
-iterations = 2
+iterations = 5
 y = runGeneration(population, iterations)
 x = np.arange(iterations)
 plt.plot(x, y)
