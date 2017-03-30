@@ -119,8 +119,7 @@ class imageProcess:
         # print method
         res = cv2.matchTemplate(image, template, eval('cv2.TM_CCORR_NORMED'))
         min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(res)
-        # mmr = Core.minMaxLoc(result);
-        # maxMatchScore = mmr.maxVal;
+        print "Accuracy Score: ", max_val
 
         top_left = min_loc
         bottom_right = (top_left[0] + w, top_left[1] + h)
