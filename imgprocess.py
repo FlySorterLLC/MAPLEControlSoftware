@@ -107,6 +107,29 @@ class imageProcess:
         
         return result
 
+    def findOpening2(self, image):
+
+        image = cv2.imread(image, 0)
+        image = cv2.resize(image, (850, 625))
+        template = cv2.imread('template.jpg', 0)
+
+        w, h = template.shape[::-1]
+
+        # method = eval('cv2.TM_SQDIFF')
+        # print method
+        res = cv2.matchTemplate(image, template, eval('cv2.TM_CCORR_NORMED'))
+        min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(res)
+        # mmr = Core.minMaxLoc(result);
+        # maxMatchScore = mmr.maxVal;
+
+        top_left = min_loc
+        bottom_right = (top_left[0] + w, top_left[1] + h)
+
+        cv2.rectangle(image, top_left, bottom_right, 255, 2)
+
+        cv2.imshow("Output", image)
+        cv2.waitKey(0)
+
     def watershed(self, image):
     	img = cv2.imread(image)
     	gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
@@ -180,7 +203,7 @@ a = imageProcess()
 
 # cv2.imshow("Processed Lid", a.watershed("img11.png"))
 #print a.findOpening("temp_img.png")
-print a.findOpening("curImage.jpg")
+a.findOpening2("curImage.jpg")
 # print a.findOpening("img2.png")
 # print a.findOpening("img3.png")
 # print a.findOpening("img4.png")
