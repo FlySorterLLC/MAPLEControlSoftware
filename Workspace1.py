@@ -6,8 +6,8 @@
 
 import numpy as np
 
-import WorkspaceModules.FlyPlate
-import WorkspaceModules.FlyDispenser
+import WorkspaceModules.FlyPlateFlyDispenser
+import WorkspaceModules.
 
 Workspace1 = { 'baseThickness': 2.93,
                'plate1': WorkspaceModules.FlyPlate.FlyPlate( np.array([43.6, 91.1]),

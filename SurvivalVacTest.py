@@ -2,11 +2,12 @@ import cv2
 import numpy as np
 import time
 import robotutil
-import Workspace1
+#import Workspace1
 import math
 import random as rand
 import matplotlib.pyplot as plt
 import ConfigParser
+from datetime import datetime
 
 #### BEGIN PGM ####
 coordfromcfg = False       # Set True to read Arena_Coordinates.cfg file for coordinates
@@ -61,10 +62,13 @@ else:       # Rows denote y position changes in arena, columns denote x changes
     hxdif = 9       # same for home POIs
     hydif = 9      
     POIrad = 10.5     # radius of arena POI opening
-    POIz = 51
-    Vacz = 51       # depth from which to vacuum the fly out of the POI
+    POIz = 49
+    Vacz = 50       # depth from which to vacuum the fly out of the POI
     homezdepos = 43      # depth at which flies can be deposited in home
-    homezwd = 45        # depth at which flies can be vacuumed out of home
+    homezwd = 44        # depth at which flies can be vacuumed out of home
+    dispx = 639.5
+    dispy = 113
+    dispz = 33
 
 
     arncoordsX = np.zeros((nrows, ncols))
@@ -93,9 +97,52 @@ else:       # Rows denote y position changes in arena, columns denote x changes
     Radii = (ManipX / ManipX) * POIrad
 
 
-for j in range(0,5):
-    for i in range(0,8,2):
-        robot.homeWithdraw(homecoordX=FlyHomeX[i], homecoordY=FlyHomeY[i], carefulZ=5, vacBurst=1, homeZ=45)
-        robot.dwell(100)
-        robot.homeDeposit(homecoordX=FlyHomeX[i], homecoordY=FlyHomeY[i], carefulZ=5, vacBurst=1, homeZ=44)
+
+# FlyPOSfrom = range(0,48)
+# FlyPOSto = range(0,48)
+# instructmage = robot.visualizeInstruct(HXcoords=FlyHomeX, HYcoords=FlyHomeY, Xcoords=ManipX, Ycoords=ManipY, ArenaSide='R', POIrad=POIrad, dispx=dispx, dispy=dispy, instHN=FlyPOSfrom, instN=FlyPOSto, instdispN=0, start='home')
+# for n in range(len(FlyPOSfrom)):
+#     robot.updateCurInstruct(background=instructmage, N=n, HXcoords=FlyHomeX, ArenaSide='R', HYcoords=FlyHomeY, Xcoords=ManipX, Ycoords=ManipY, dispx=dispx, dispy=dispy, instHN=FlyPOSfrom, instN=FlyPOSto, instdispN=0, start='home')
+#     Fail = robot.homeWithdraw(homecoordX=FlyHomeX[FlyPOSfrom[n]], homecoordY=FlyHomeY[FlyPOSfrom[n]], refptX='N', refptY='N', carefulZ=7, dislodgeZ=25, vacBurst=1, homeZ=homezwd)
+#     instructmage = robot.updatePastInstruct(background=instructmage, N=n, HXcoords=FlyHomeX, ArenaSide='R', HYcoords=FlyHomeY, Xcoords=ManipX, Ycoords=ManipY, POIrad=POIrad, dispx=dispx, dispy=dispy, instHN=FlyPOSfrom, instN=FlyPOSto, instdispN=0, start='home', updateWhich='home', Fail=Fail['limit'])
+#     robot.updateCurInstruct(background=instructmage, N=n, HXcoords=FlyHomeX, ArenaSide='R', HYcoords=FlyHomeY, Xcoords=ManipX, Ycoords=ManipY, dispx=dispx, dispy=dispy, instHN=FlyPOSfrom, instN=FlyPOSto, instdispN=0, start='home')
+#     Fail = robot.arenaDeposit(camcoordX=CamX[FlyPOSto[n]], camcoordY=CamY[FlyPOSto[n]], camcoordZ=camsharpz, arenacoordX=ManipX[FlyPOSto[n]], arenacoordY=ManipY[FlyPOSto[n]], arenaRad=POIrad, turnZ=POIz, airPos=300, airZ=Vacz, closePos=180)
+#     instructmage = robot.updatePastInstruct(background=instructmage, N=n, HXcoords=FlyHomeX, ArenaSide='R', HYcoords=FlyHomeY, Xcoords=ManipX, Ycoords=ManipY, POIrad=POIrad, dispx=dispx, dispy=dispy, instHN=FlyPOSfrom, instN=FlyPOSto, instdispN=0, start='home', updateWhich='arena', Fail=Fail['miss'])
+# filename = str(datetime.now())
+# filename = filename[0:10] + '.png'
+# cv2.imshow('Final', instructmage)
+# cv2.imwrite(filename, instructmage)
+# cv2.waitKey(10)
+
+timeelapsed = 0
+while ( timeelapsed <= 300 ):
+    mail = robot.listenMode()
+    if mail != None:
+        robot.home()
+        robot.doInstruct(instruction=mail['instruct'], mailfrom=mail['from'], values=mail['values'], CamX=CamX, CamY=CamY, CamZ=camsharpz, ManipX=ManipX, ManipY=ManipY, turnZ=POIz, vacZ=Vacz, arenaRad=10.5, HomeX=FlyHomeX, HomeY=FlyHomeY, HomeZwd=homezwd, HomeZdp=homezdepos)
+        robot.home()
+    timeelapsed = timeelapsed + 1       # in minutes
+    print 'time since start:', timeelapsed
+
+#for i in range(mail['values'][0],mail['values'][1],1):
+    #robot.arenaWithdraw(camcoordX=CamX[i], camcoordY=CamY[i], camcoordZ=camsharpz, arenacoordX=ManipX[i], arenacoordY=ManipY[i], arenaRad=Radii[i], turnZ=POIz, vacPos=50, vacZ=Vacz, closePos=180, vacBurst=1, strategy=2)
+    #robot.dwell(10)
+    #robot.homeDeposit(homecoordX=FlyHomeX[i], homecoordY=FlyHomeY[i], carefulZ=5, vacBurst=1, homeZ=44)
+    #robot.dwell(10)
+#for j in range(0,3):
+    #flyremainvect = robot.sweep(CamX[mail['values'][0]:mail['values'][1]], CamY[mail['values'][0]:mail['values'][1]], camz=camsharpz)
+    #for i in range(0,len(flyremainvect),1):
+        #robot.arenaWithdraw(camcoordX=CamX[flyremainvect[i]], camcoordY=CamY[flyremainvect[215223i]], camcoordZ=camsharpz, arenacoordX=ManipX[flyremainvect[i]], arenacoordY=ManipY[flyremainvect[i]], arenaRad=Radii[flyremainvect[i]], turnZ=POIz, vacPos=50, vacZ=Vacz, closePos=180, vacBurst=1, strategy=2)
+        #robot.dwell(10)
+        #robot.homeDeposit(homecoordX=FlyHomeX[flyremainvect[i]], homecoordY=FlyHomeY[flyremainvect[i]], carefulZ=5, vacBurst=1, homeZ=44)
+        #robot.dwell(10)
+
+#print 'Notifying user of failed arenas'
+#unsurevect = robot.sweep(CamX[flyremainvect], CamY[flyremainvect], camz=camsharpz)
+#try:
+    #flyremainvect = flyremainvect[unsurevect]
+    #robot.SaveArenaPic(Xcoords=CamX[flyremainvect], Ycoords=CamY[flyremainvect], IndVect=flyremainvect)
+    #robot.notifyUserFail(flyremainvect, attImg=1)
+#except:
+    #print 'No failed arenas detected'
 

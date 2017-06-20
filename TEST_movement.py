@@ -64,11 +64,13 @@ else:       # Rows denote y position changes in arena, columns denote x changes
     hxdif = 9       # same for home POIs
     hydif = 9      
     POIrad = 10.5     # radius of arena POI opening
-    POIz = 51
-    Vacz = 51       # depth from which to vacuum the fly out of the POI
+    POIz = 49
+    Vacz = 50       # depth from which to vacuum the fly out of the POI
     homezdepos = 43      # depth at which flies can be deposited in home
     homezwd = 45        # depth at which flies can be vacuumed out of home
-
+    dispx = 639.5
+    dispy = 113
+    dispz = 34
 
     arncoordsX = np.zeros((nrows, ncols))
     arncoordsY = np.zeros((nrows, ncols))
@@ -159,15 +161,15 @@ for j in range(0,repeats):
                 robot.smallPartManipVac(False)
                 robot.dwell(t=5)
                 robot.smallPartManipVac(True)
-                if tempCoord['endDeg'] <= 180:        # hastens bringing the opening to a vacuumable position
-                    endpos2 = 1
-                elif tempCoord['endDeg']  > 180:
+                if tempCoord['endDeg'] <= 180:        # more time to suck the fly in during half circle/tradeoff speed
                     endpos2 = 180
+                elif tempCoord['endDeg']  > 180:
+                    endpos2 = 1
                 tempCoord = robot.tryOpening(mid = tempCoord['oldMid'], r = float(Radii[i]), z = POIz, startpos=tempCoord['endDeg'], endpos=endpos2, spd=2000, descendZ=1)
                 endpos1 = tempCoord['endDeg']
-                robot.dwell(50)
+                robot.dwell(10)
                 robot.moveZ([tempCoord['endXY'][0],tempCoord['endXY'][1],0,0,10])
-                robot.dwell(50)
+                robot.dwell(10)
             # Check if fly is vacuumed out
             robot.moveToSpd(pt=[float(CamX[i]), float(CamY[i]), 0, camsharpz, 10, 5000])
             robot.dwell(50)
@@ -192,7 +194,7 @@ for j in range(0,repeats):
             robot.flyManipAir(False)
             robot.dwell(t=3)
             robot.moveRel(pt=[0, 0, 0, 0, -homezdepos])
-            robot.dwell(t=1)
+            robot.dwell(t=10)
         else:
             print 'possible misalignment - resetting...'
             fails[i+(j*iterations)] = 0     # so it remains the same chance after reset
@@ -352,10 +354,9 @@ for j in range(0,repeats):      # LOADING FLIES INTO ARENA
                 endpos1 = tempCoord['endDeg']
                 robot.dwell(50)
                 robot.moveZ([tempCoord['endXY'][0],tempCoord['endXY'][1],0,0,10])
+                
             # Check if fly is vacuumed out
             robot.moveToSpd(pt=[float(CamX[i]), float(CamY[i]), 0, camsharpz, 10, 5000])
-                            
-                            ### COMMENT BACK IN IN THE MORNING! ###
             flyremaining = robot.detectFly( minpx=40, maxpx=2000)
             if flyremaining == False and consectryunload >= 2:
                 flyremaining = True        # Move on after 3 tries and mark for sweep
