@@ -1,0 +1,199 @@
+# NOTE Lines must not exceed 132 characters
+## Robot module configurations : general handling of movement G-codes and slicing into moves
+default_feed_rate                            4000             # Default rate ( mm/minute ) for G1/G2/G3 moves
+default_seek_rate                            4000             # Default rate ( mm/minute ) for G0 moves
+mm_per_arc_segment                           0.0              # Fixed length for line segments that divide arcs 0 to disable
+mm_max_arc_error                             0.01             # The maximum error for line segments that divide arcs 0 to disable
+                                                              # note it is invalid for both the above be 0
+                                                              # if both are used, will use largest segment length based on radius
+#mm_per_line_segment                          5                # Lines can be cut into segments ( not usefull with cartesian
+                                                              # coordinates robots ).
+
+# Arm solution configuration : Cartesian robot. Translates mm positions into stepper positions
+arm_solution                                 corexy
+alpha_steps_per_mm                           80               # Steps per mm for alpha stepper
+beta_steps_per_mm                            80               # Steps per mm for beta stepper
+gamma_steps_per_mm                           640              # Steps per mm for gamma stepper
+delta_steps_per_mm                           640              # may be steps per degree for example
+epsilon_steps_per_mm                         640              # may be steps per degree for example
+
+
+# Planner module configuration : Look-ahead and acceleration configuration
+planner_queue_size                           32               # DO NOT CHANGE THIS UNLESS YOU KNOW EXACTLY WHAT YOU ARE DOING
+acceleration                                 3000             # Acceleration in mm/second/second.
+#z_acceleration                              500              # Acceleration for Z only moves in mm/s^2, 0 uses acceleration which is the default. DO NOT SET ON A DELTA
+junction_deviation                           0.05             # Similar to the old "max_jerk", in millimeters,
+                                                              # see https://github.com/grbl/grbl/blob/master/planner.c
+                                                              # and https://github.com/grbl/grbl/wiki/Configuring-Grbl-v0.8
+                                                              # Lower values mean being more careful, higher values means being
+                                                              # faster and have more jerk
+#z_junction_deviation                        0.0              # for Z only moves, -1 uses junction_deviation, zero disables junction_deviation on z moves DO NOT SET ON A DELTA
+#minimum_planner_speed                       0.0              # sets the minimum planner speed in mm/sec
+
+# Stepper module configuration
+microseconds_per_step_pulse                  1                # Duration of step pulses to stepper drivers, in microseconds
+base_stepping_frequency                      100000           # Base frequency for stepping
+
+# Cartesian axis speed limits
+x_axis_max_speed                             12000            # mm/min
+y_axis_max_speed                             12000            # mm/min
+z_axis_max_speed                             5000              # mm/min
+
+# Stepper module pins ( ports, and pin numbers, appending "!" to the number will invert a pin )
+alpha_step_pin                               2.0              # Pin for alpha stepper step signal
+alpha_dir_pin                                0.5              # Pin for alpha stepper direction
+alpha_en_pin                                 0.4              # Pin for alpha enable pin
+alpha_current                                1.0              # X stepper motor current
+alpha_max_rate                               30000.0          # mm/min
+
+beta_step_pin                                2.1              # Pin for beta stepper step signal
+beta_dir_pin                                 0.11!             # Pin for beta stepper direction
+beta_en_pin                                  0.10             # Pin for beta enable
+beta_current                                 1.0              # Y stepper motor current
+beta_max_rate                                30000.0          # mm/min
+
+gamma_step_pin                               2.2              # Pin for gamma stepper step signal
+gamma_dir_pin                                0.20             # Pin for gamma stepper direction
+gamma_en_pin                                 0.19             # Pin for gamma enable
+gamma_current                                0.75              # Z stepper motor current
+gamma_max_rate                               5000.0            # mm/min
+
+# A axis
+delta_step_pin                               2.3              # Pin for delta stepper step signal
+delta_dir_pin                                0.22             # Pin for delta stepper direction
+delta_en_pin                                 0.21             # Pin for delta enable
+delta_current                                0.75              # Z stepper motor current
+delta_max_rate                               5000.0            # mm/min
+
+# B axis
+epsilon_step_pin                               2.8              # Pin for delta stepper step signal
+epsilon_dir_pin                                2.13             # Pin for delta stepper direction
+epsilon_en_pin                                 4.29             # Pin for delta enable
+epsilon_current                                0.75              # Z stepper motor current
+epsilon_max_rate                               5000.0            # mm/min
+
+## System configuration
+# Serial communications configuration ( baud rate defaults to 9600 if undefined )
+uart0.baud_rate                              115200           # Baud rate for the default hardware serial port
+second_usb_serial_enable                     false            # This enables a second usb serial port (to have both pronterface
+                                                              # and a terminal connected)
+#leds_disable                                true             # disable using leds after config loaded
+#play_led_disable                            true             # disable the play led
+
+# Kill button (used to be called pause) maybe assigned to a different pin, set to the onboard pin by default
+kill_button_enable                           true             # set to true to enable a kill button
+kill_button_pin                              2.12             # kill button pin. default is same as pause button 2.12 (2.11 is another good choice)
+
+#msd_disable                                 false            # disable the MSD (USB SDCARD) when set to true (needs special binary)
+#dfu_enable                                  false            # for linux developers, set to true to enable DFU
+#watchdog_timeout                            10               # watchdog timeout in seconds, default is 10, set to 0 to disable the watchdog
+
+# Only needed on a smoothieboard
+currentcontrol_module_enable                 true             #
+
+
+## Endstops new syntax (the name is not significant)
+# NOTE only a min or a max homing endstop maybe defined
+endstop.minx.enable                          true             # enable an endstop
+endstop.minx.pin                             1.24^            # pin
+endstop.minx.homing_direction                home_to_min      # direction it moves to the endstop
+endstop.minx.homing_position                 -2               # the cartesian coordinate this is set to when it homes
+endstop.minx.axis                            X                # the axis designator
+endstop.minx.max_travel                      1200             # the maximum travel in mm before it times out
+endstop.minx.fast_rate                       100               # fast homing rate in mm/sec
+endstop.minx.slow_rate                       20               # slow homing rate in mm/sec
+endstop.minx.retract                         2                # bounce off endstop in mm
+
+endstop.miny.enable                          true             # enable an endstop
+endstop.miny.pin                             1.26^            # pin
+endstop.miny.homing_direction                home_to_min      # direction it moves to the endstop
+endstop.miny.homing_position                 -2               # the cartesian coordinate this is set to when it homes
+endstop.miny.axis                            Y                # the axis designator
+endstop.miny.max_travel                      500              # the maximum travel in mm before it times out
+endstop.miny.fast_rate                       100               # fast homing rate in mm/sec
+endstop.miny.slow_rate                       20               # slow homing rate in mm/sec
+endstop.miny.retract                         2                # bounce off endstop in mm
+
+endstop.minz.enable                          true             # enable an endstop
+endstop.minz.pin                             1.28^            # pin
+endstop.minz.homing_direction                home_to_min      # direction it moves to the endstop
+endstop.minz.homing_position                 -1               # the cartesian coordinate this is set to when it homes
+endstop.minz.axis                            Z                # the axis designator
+endstop.minz.max_travel                      100              # the maximum travel in mm before it times out
+endstop.minz.fast_rate                       20               # fast homing rate in mm/sec
+endstop.minz.slow_rate                       5                # slow homing rate in mm/sec
+endstop.minz.retract                         1                # bounce off endstop in mm
+
+endstop.mina.enable                          true             # enable an endstop
+endstop.mina.pin                             1.25^            # pin
+endstop.mina.homing_direction                home_to_min      # direction it moves to the endstop
+endstop.mina.homing_position                 -1               # the cartesian coordinate this is set to when it homes
+endstop.mina.axis                            A                # the axis designator
+endstop.mina.max_travel                      100              # the maximum travel in mm before it times out
+endstop.mina.fast_rate                       20               # fast homing rate in mm/sec
+endstop.mina.slow_rate                       5                # slow homing rate in mm/sec
+endstop.mina.retract                         1                # bounce off endstop in mm
+
+endstop.minb.enable                          true             # enable an endstop
+endstop.minb.pin                             1.27^            # pin
+endstop.minb.homing_direction                home_to_min      # direction it moves to the endstop
+endstop.minb.homing_position                 -1               # the cartesian coordinate this is set to when it homes
+endstop.minb.axis                            B                # the axis designator
+endstop.minb.max_travel                      100              # the maximum travel in mm before it times out
+endstop.minb.fast_rate                       20               # fast homing rate in mm/sec
+endstop.minb.slow_rate                       5                # slow homing rate in mm/sec
+endstop.minb.retract                         1                # bounce off endstop in mm
+
+endstop.maxb.enable                          true             # enable an endstop
+endstop.maxb.pin                             1.29^            # pin
+endstop.maxb.axis                            B                # the axis designator
+
+# optional enable limit switches, actions will stop if any enabled limit switch is triggered
+endstop.minx.limit_enable                   true            # set to true to enable the limit on this endstop
+endstop.miny.limit_enable                   true            # set to true to enable the limit on this endstop
+endstop.minz.limit_enable                   true            # set to true to enable the limit on this endstop
+endstop.mina.limit_enable                   true            #
+endstop.minb.limit_enable                   true            #
+endstop.maxb.limit_enable                   true            #
+
+# type of machine
+corexy_homing                               true            # set to true if homing on a hbot or corexy
+
+# optional order in which axis will home, default is they all home at the same time,
+# if this is set it will force each axis to home one at a time in the specified order
+homing_order                                ZABYX              # x axis followed by y then z last
+move_to_origin_after_home                   false              # move XY to 0,0 after homing
+#endstop_debounce_count                       100              # uncomment if you get noise on your endstops, default is 100
+#endstop_debounce_ms                          1                # uncomment if you get noise on your endstops, default is 1 millisecond debounce
+#home_z_first                                 true             # uncomment and set to true to home the Z first, otherwise Z homes after XY
+
+
+switch.gpio0.enable                   true           #
+switch.gpio0.input_off_command        M41            #
+switch.gpio0.input_on_command         M40            #
+switch.gpio0.output_pin               2.7            #
+switch.gpio0.output_type              digital        #
+
+switch.gpio1.enable                   true           #
+switch.gpio1.input_off_command        M43            #
+switch.gpio1.input_on_command         M42            #
+switch.gpio1.output_pin               2.5           #
+switch.gpio1.output_type              digital        #
+
+switch.gpio2.enable                   true           #
+switch.gpio2.input_off_command        M45            #
+switch.gpio2.input_on_command         M44            #
+switch.gpio2.output_pin               1.23           #
+switch.gpio2.output_type              digital        #
+
+switch.gpio3.enable                   true           #
+switch.gpio3.input_off_command        M47            #
+switch.gpio3.input_on_command         M46            #
+switch.gpio3.output_pin               2.4            #
+switch.gpio3.output_type              digital        #
+
+switch.gpio4.enable                   true           #
+switch.gpio4.input_off_command        M49            #
+switch.gpio4.input_on_command         M48            #
+switch.gpio4.output_pin               2.6            #
+switch.gpio4.output_type              digital        #
