@@ -3,3 +3,8 @@
 photos/
 log/
 SantaFe.cfg
+.DS_store
+curImage*.jpg
+circlelid*.png
+debug*.png
+debug*.jpg
