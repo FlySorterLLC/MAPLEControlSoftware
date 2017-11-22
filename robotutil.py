@@ -4,11 +4,9 @@
 #
 #  File: robotutil.py
 #  Description: Contains classes and functions used to control
-#  the FlySorter automated experiment platform (project name Santa Fe).
-#  High-level commands can be called in primary experimental scripts with relevant coordinates.
+#     the FlySorter automated experiment platform (project name Santa Fe).
+#
 
-
-## Dependencies
 import os
 import math
 import cv2
@@ -29,7 +27,6 @@ from email.mime.image import MIMEImage
 from email.mime.multipart import MIMEMultipart
 import urllib2
 import pyicic.IC_ImagingControl
-
 
 # Serial communications class that is used for multiple devices.
 # In Santa Fe, the smoothie board is a serial devices. The smoothie is connected directly
@@ -97,8 +94,12 @@ class santaFeSerial:
                 break
             if byte == '\n':
                 break
+        #print "WFO Output:", output
         if ( not output.startswith("ok") ) and ( not output.startswith("OK") ):
             print "Unexpected serial output:", output.rstrip('\r\n'), "(", ':'.join(x.encode('hex') for x in output), ")"
+            return False
+        else:
+        	return True
 
     # Send a command to the device via serial port
     # Asynchronous by default - doesn't wait for reply
@@ -111,10 +112,16 @@ class santaFeSerial:
     # Waits to receive reply of "ok" or "OK" via waitForOK()
     def sendSyncCmd(self, cmd):
         #print "SSC:", cmd
-        self.ser.flushInput()
-        self.ser.write(cmd)
-        self.ser.flush()
-        self.waitForOK()
+        Tries = 1
+        while Tries <= 10:
+            self.ser.flushInput()
+            self.ser.write(cmd)
+            self.ser.flush()
+            AllOK = self.waitForOK()
+            Tries = Tries + 1
+            if AllOK == True:
+                Tries = 11
+
 
     # Send a command and retrieve the reply
     def sendCmdGetReply(self, cmd):
@@ -163,7 +170,7 @@ class santaFe:
                       'VFOV': '11.25'
                       }
 
-    def __init__(self, robotConfigFile):
+    def __init__(self, robotConfigFile,initDisp=1):
         print "Reading config file...",
         self.config = ConfigParser.RawConfigParser(self.configDefaults)
         self.readConfig(robotConfigFile)
@@ -185,22 +192,25 @@ class santaFe:
                 continue 
             tempPort.close()
 
-        for portDesc in portList:
-            tempPort = santaFeSerial(portDesc, 9600)
-            tempPort.sendCmd('V')
-            time.sleep(1)
-            r = tempPort.getSerOutput()
-            print "Got reply: ", r
-            if r.startswith("  V"):
-                print "Port:", portDesc, "is dispenser."
-                self.dispenserPort = tempPort
-                try:
-                    self.dispenserPort.sendSyncCmd('I')
-                except:
-                    print 'Port found but failed to send init command.'
-                break
-            tempPort.sendCmd('\r\n')
-            tempPort.close()
+        if initDisp == 1:
+	        for portDesc in portList:
+	            tempPort = santaFeSerial(portDesc, 9600)
+	            tempPort.sendCmd('V')
+	            time.sleep(1)
+	            r = tempPort.getSerOutput()
+	            print "Got reply: ", r
+	            if r.startswith("  V"):
+	                print "Port:", portDesc, "is dispenser."
+	                self.dispenserPort = tempPort
+	                try:
+	                    self.dispenserPort.sendSyncCmd('I')
+	                except:
+	                    print 'Port found but failed to send init command.'
+	                break
+	            tempPort.sendCmd('\r\n')
+	            tempPort.close()
+        else:
+	        print "Skipping dispenser initialization."
 
         if self.smoothie is None:
             print "Serial initialization failed."
@@ -223,15 +233,18 @@ class santaFe:
         urllib2.urlopen('http://lab.debivort.org/mu.php?id=santaFe&st=1')
         return
 
-	# Captures current camera image; returns as numpy array
     def captureImage(self):
         self.cam.start_live()
         self.cam.snap_image()
         (imgdata, w, h, d) = self.cam.get_image_data()
         self.cam.stop_live()
+
+        #print "Image is", w, "by", h
+
         img = np.ndarray(buffer = imgdata,
                          dtype = np.uint8,
                          shape = (h, w, d))
+
         return img
 
     # Read in the config, and assign values to the appropriate vars
@@ -250,7 +263,6 @@ class santaFe:
         self.FOV = np.array([ float(self.config.get('DEFAULT', 'HFOV')), float(self.config.get('DEFAULT', 'VFOV')) ])
         return
 
-    # Resets all solenoid valves, camera, and light circle
     def release(self):
         self.light(False)
         self.flyManipVac(False)
@@ -260,19 +272,16 @@ class santaFe:
         self.cam.close()
         self.smoothie.close()
 
-    # Homing via g-code command (moves along axes according to .ini file uploaded to robot)
     def home(self):
         self.smoothie.sendSyncCmd("G28\n")
         self.smoothie.sendSyncCmd("G01 F{0}\n".format(self.travelSpeed))
         self.currentPosition = np.array([0., 0., 0., 0., 0.])
         return
 
-    # Only homes end effectors; Faster than regular home()
     def homeZ(self):
     	self.smoothie.sendSyncCmd("G28 B0\n")
     	return
 
-   	# Returns current position as array
     def getCurrentPosition(self):
         # M114.2 returns string like: "ok MCS: X:0.0000 Y:0.0000 Z:0.0000 A:0.0000 B:0.0000"
 		while True:
@@ -290,20 +299,20 @@ class santaFe:
 		z2Pos = float(positions[6].split(':')[1])
 		return np.array( [ xPos, yPos, z0Pos, z1Pos, z2Pos ] )
 
-	# Simple coordinate-move command
     def moveXY(self, pt):
         if (len(pt) != 2):
             print 'Error: incorrect coordinate string. Dropping moveXY instruction'
             return
+
         if ( self.isPtInBounds((pt[0], pt[1], 0., 0., 0.)) == False ):
             print 'Error: point out of bounds (less than zero, greater than maxExtents)'
             return
+
         cmd = "G01 X{0[0]} Y{0[1]}\n".format(pt)
         self.smoothie.sendSyncCmd(cmd)
         self.currentPosition[0] = pt[0]
         self.currentPosition[1] = pt[1]
 
-    # Coordinate-move command with added mandatory speed (Also updates default speed)
     def moveXYSpd(self, pt):
         if (len(pt) != 3):
             print 'Error: missing speed parameter'
@@ -323,19 +332,20 @@ class santaFe:
         if (len(pt) != 7):
             print 'Error: incorrect coordinate string or missing rotation parameters. Dropping rotate instruction'
             return
+
         cmd = "G02 X{0[0]} Y{0[1]} Z{0[2]} A{0[3]} B{0[4]} I{0[5]} J{0[6]}\n".format(pt)
         self.smoothie.sendSyncCmd(cmd)
         self.dwell(1)
         self.currentPosition = pt
         return
     
-    def moveCirc(self, r, n, endpos, spd, rest, full=False):        # use moveCirc2 whenever possible (smoother movement)
+    def moveCirc(self, r, n, endpos, spd, rest, full=False):        #moveCirc2 works better!
     ## circular motion around current point; r: radius, n: amount of points (fine-ness),
     ## endpos: movement end point in multiples of pi, spd; speed, rest: time between movements (fine-ness)
         self.dwell(t=500) # to get accurate starting point
         curcircle = np.arange(n*2).reshape((n, 2))
         XYPos = self.getCurrentPosition()
-        CircStart = XYPos[0:2]
+        CircStart = XYPos[0:2]   # may be interesting in other functions
         tempPos = XYPos[0:2]
         tempPosSpd = [0,1,2]
         for x in range(0,n):
@@ -357,15 +367,13 @@ class santaFe:
         CircEnd = tempPos
         if full!= False:
             self.moveXY(pt=CircStart)
-        self.dwell(t=200)   # ensures plate is still from current movement
+        self.dwell(t=200)   # ensures plate is still
         return CircEnd
 
-
-    # Circular movement followed by lowering of fly manipulating end effector (Hit-detection causes Z-axis retreat)
     def moveCirc2(self, mid, r, n=360, startpos=0, endpos=360, spd=1500, rest=100, z=53, full=True, retreatZ=10, descendZ=9):       #also lowers onto z height
         careful = 0     # failsafe when already starts lowered
         if spd >= 2001:
-            print 'Adjusting speed to safe level 2000 ...'	# Prevents calibration errors due to post-motion-induced positional changes.
+            print 'Adjusting speed to safe level 2000 ...'	# locks up on cross-axis motion and screws up positioning	
             spd = 2000
         while startpos > 360:
             startpos = startpos - 360
@@ -376,37 +384,53 @@ class santaFe:
         deg = np.ones((n+1,3))
         for x in range(0,len(deg)):
             deg[x,:] = (math.sin(2*math.pi/n*x)*r)+mid[0], (math.cos(2*math.pi/n*x)*r)+mid[1], spd
+            #print 'calculation for degree', x, ': ', deg[x,:]
+        #print 'calculated points as', deg
         if endpos - startpos < 0:
             step = -1
             offset = -2
         else:
             step = 1
             offset = 2
+        #print 'made it to loop with step:', step, 'and offset:', offset
         for i in range(startpos, endpos+1, step):       # loop that performs the circular movement and lowering only on iteration 1
             if careful != 1:
                 if step == 1 and i >= endpos-offset:
                     deg[:,2] = self.travelSpeed     # resets slow speed to config normal
+                    #print 'speed reset to:', self.travelSpeed   # Has to be before move command to remain in effect
                 elif step == -1 and i <= endpos-offset:
                     deg[:,2] = self.travelSpeed
+                    #print 'speed reset to:', self.travelSpeed
                 self.moveXYSpd(pt=deg[i,:])
                 self.dwell(rest)
                 if i == startpos:
-                    self.dwell(10)  # buffer before lowering
+                    self.dwell(10)  # just a tiny buffer before lowering
+                    #print 'waiting to lower...'
                 XYpos = self.getCurrentPosition()
-                if i == startpos and (XYpos[0] - deg[startpos,0] <= 1) and (XYpos[1] - deg[startpos,1] <= 1):   # only lower end effector on first iteration and if degrees match
+                #print i, XYpos, deg[i,0], deg[i,1]
+                if i == startpos and (XYpos[0] - deg[startpos,0] <= 1) and (XYpos[1] - deg[startpos,1] <= 1):   # only lower on first iteration and if degrees match
+                    #print 'lowering...'
                     self.dwell(10)
-                    self.moveZ(pt=[XYpos[0],XYpos[1],0,0,z-descendZ]) # lowers to descendZ units above detected opening at height z
-                    self.dwell(1) # buffer before loop
+                    self.moveZ(pt=[XYpos[0],XYpos[1],0,0,z-descendZ]) # lowers to 9 units above detected opening
+                    self.dwell(1) # give time before the loop
+                    #print self.getCurrentPosition()
+                    #self.moveTo(pt=[XYpos[0],XYpos[1],0,0,z-9])        # one of these gets skipped for some reason..
+                    #self.dwell(1) # give time before the loop
+                    #print self.getCurrentPosition()
                     for j in range(1, descendZ+2):     #carefully lower into opening and start at 0 just to also check current limit
                         self.dwell(1)
                         self.moveZ(pt=[XYpos[0],XYpos[1],0,0,(z-descendZ)+j])
+                        #print 'lowering step:', j, 'ends at', self.getCurrentPosition()
                         careful = self.getLimit()
                         if careful == 1:
                             self.moveZ(pt=[XYpos[0],XYpos[1],0,0,retreatZ])
+                            #print 'should be retreating...'  
+                            #print 'firstbreak' 
                             break
             elif careful != 0:
                 self.moveZ(pt=[XYpos[0],XYpos[1],0,0,retreatZ])
-                break
+                #print 'secbreak'
+                break      #super overkill but more secure
         if careful != 1 and full == True:
             self.moveXYSpd(pt=deg[endpos,:])
             XYpos = deg[endpos,0:2]
@@ -416,7 +440,6 @@ class santaFe:
         return {'endXY':XYpos, 'endDeg':endpos, 'oldMid': mid, 'limit': careful, 'startDeg': startpos}
 
 
-    # Uses repeated hit-detection of moveCirc2() as error-correction of slightly deviating opening-detection
     def tryOpening(self, mid, r, n=360, startpos=0, endpos=360, spd=1000, rest=5, z=53, full=True, retreatZ=10, descendZ=9):
         tryspd = spd
         trymid = mid
@@ -426,20 +449,25 @@ class santaFe:
         unsure=0
         radi = r
         careonce = 0
+        #print 'first try...'
         trylower = self.moveCirc2(mid=trymid, r=radi, n=360, startpos=trystart, endpos=tryend, spd=tryspd, rest=5, z=tryz, full=True, retreatZ=42, descendZ=descendZ)
         startposFirst = startpos
+        #print 'startposFirst is:', startposFirst
         while trylower['limit'] == 1 and unsure != 1:
             for cw in xrange(2,10,2):
                 if trylower['limit'] == 1:
                     careonce = 1
+                    #print 'trying 2 degrees further clockwise...'
                     startpos = startpos + cw
                     trylower = self.moveCirc2(mid=trymid, r=radi, n=360, startpos=startpos, endpos=tryend, spd=tryspd, rest=5, z=tryz, full=True, retreatZ=42, descendZ=descendZ)
                 else:
                     break
             startpos = startposFirst
-            for ccw in xrange(2,10,2):       # can skip 0 degree offset due to clockwise motion
+            #print 'now trying counterclockwise at', startpos, 'which should match', startposFirst
+            for ccw in xrange(2,10,2):       # can skip 0 degree offset bc clockwise covered it
                 if trylower['limit'] == 1:
                     careonce = 1
+                    #print 'trying 2 degrees further counter-clockwise...'
                     startpos = startpos - ccw
                     trylower = self.moveCirc2(mid, r=radi, n=360, startpos=startpos, endpos=tryend, spd=tryspd, rest=5, z=tryz, full=True, retreatZ=42, descendZ=descendZ)
                 else:
@@ -451,8 +479,7 @@ class santaFe:
         trylower.update({'limitonce':careonce})
         return trylower
 
-    # Step-by-step lowering of fly-manipulating end effector with hit-detection
-    def lowerCare(self, z, descendZ=9, retreatZ=18):		# z: depth of descend; descendZ: number of careful steps to reach depth z; retreatZ: RELATIVE height retreat upon hit
+    def lowerCare(self, z, descendZ=9, retreatZ=18):		# z: how low to move; descendZ: how many steps are done carefully to reach z; retreatZ: RELATIVE height retreat upon hit
 		if z > 55 or z < 0:
 			print 'Z not in range 0,55 - skipping...'
 			return
@@ -464,6 +491,7 @@ class santaFe:
 		for i in range(1, descendZ+2):    
 			self.dwell(1)
 			self.moveRel(pt=[0,0,0,0,1])
+			#print 'lowering step:', i, 'ends at', self.getCurrentPosition()
 			careful = self.getLimit()
 			if careful == 1:
 				self.moveRel(pt=[0,0,0,0,-retreatZ])
@@ -471,7 +499,6 @@ class santaFe:
 		posend = self.getCurrentPosition
 		return {'pos.begin': posbegin, 'pos.end': posend, 'limit': careful}
 
-	# Highest order command to withdraw a single fly from a single well in the housing module
     def homeWithdraw(self, homecoordX, homecoordY, refptX='N', refptY='N', carefulZ=9, dislodgeZ=10, vacBurst=1, vacDur=4000, homeZ=45):
         if refptX != 'N':
 	        self.moveToSpd(pt=[float(refptX), float(refptY), 0, 0, 10, 5000])       # Allgin to outermost flyhome to prevent tripping
@@ -497,7 +524,6 @@ class santaFe:
         	self.home()
         return {'homeX': homecoordX, 'homeY': homecoordY, 'limit': trylowerHome['limit']}
 
-    # Highest order command to deposit a single fly in a well in the housing module
     def homeDeposit(self, homecoordX, homecoordY, refptX='N', refptY='N', carefulZ=9, vacBurst=1, homeZ=44):
     	if refptX != 'N':
 	        self.moveToSpd(pt=[float(refptX), float(refptY), 0, 0, 10, 5000])       # Allgin to outermost flyhome to prevent tripping
@@ -520,7 +546,6 @@ class santaFe:
         	self.home()
         return {'homeX': homecoordX, 'homeY': homecoordY, 'limit': trylowerHome['limit']}
 
-    # Highest order command to withdraw a single fly from a single arena in the behavioral module (Different withdraw-strategies accessible using vacstrategy)
     def arenaWithdraw(self, camcoordX, camcoordY, camcoordZ, arenacoordX, arenacoordY, arenaRad, turnZ, vacPos, vacZ, closePos, vacstrategy=2, vacBurst=1, imgshow=0):
     	strategy = vacstrategy
     	missonce = 0
@@ -624,7 +649,6 @@ class santaFe:
             self.dwell(10)
             return {'miss':miss, 'arenaX':arenacoordX, 'arenaY':arenacoordY, 'endX': tempCoord['endXY'][0], 'endY':tempCoord['endXY'][1], 'endpos':endpos1, 'missonce':missonce}
 
-    # Highest order command to deposit a single fly in a single arena in the behavioral module
     def arenaDeposit(self, camcoordX, camcoordY, camcoordZ, arenacoordX, arenacoordY, arenaRad, turnZ, airPos, airZ, closePos, airBurst=1, imgshow=0):
     	missonce = 0
     	self.moveToSpd(pt=[float(camcoordX), float(camcoordY), 0, camcoordZ, 10, 5000])
@@ -663,8 +687,8 @@ class santaFe:
             self.dwell(10)
             return {'miss':miss, 'arenaX':arenacoordX, 'arenaY':arenacoordY, 'endX': tempCoord['endXY'][0], 'endY':tempCoord['endXY'][1], 'endpos':endpos1, 'missonce':missonce}
 
-    # Command fly dispenser to dispense a single fly
     def dispenseFly(self):
+        # Send command ("F")
         self.dispenserPort.sendSyncCmd('F')
         # Get reply (to check whether fly was successfully dispensed or not)
         r = ""
@@ -672,7 +696,7 @@ class santaFe:
             r = self.dispenserPort.getSerOutput()
             time.sleep(0.25)
         reply = r.rstrip("\r\n")
-        # 1:dispensed   0:no fly detected   2:fly stuck
+        #print "Reply from fly dispense:", reply     # 1:dispensed   0:no fly detected   2:fly stuck
         if ( reply == "f"):
             return 1
         elif ( reply == "t" ):
@@ -681,8 +705,7 @@ class santaFe:
             print 'Fly stuck - clean out dispenser.'
             return 2
 
-    # Moves robot to dispenser location, sends command to dispend fly, tries dispiter times to vacuum fly out
-    def dispenseWithdraw(self, dispX, dispY, dispZ, dispiter=2, onlyifsure=1):
+    def dispenseWithdraw(self, dispX, dispY, dispZ, dispiter=2, onlyifsure=1):		# Moves to dispenser location, sends command to dispend fly, tries dispiter times to vacuum fly out
     	dispsuccess = 0
     	self.moveToSpd(pt=[float(dispX), float(dispY), 0, 0, 10, 5000])
     	self.dwell(50)
@@ -733,23 +756,19 @@ class santaFe:
         print 'Dispensed', nDispensed, 'flies total.'
         return nDispensed
 
-    # Repeatedly collect successfully dispensed flies (newly hatched) and deposit into consecutive single wells in the housing module
     # Not accurate loop time-wise but ensures a minimum amount of time tried collecting. All times in ms.
     def collectHatchedForT(self, homecoordX, homecoordY, dispX, dispY, dispZ, onlyifsure=1, carefulZ=9, vacBurst=1, homeZ=44, dispiter=3, carryovernDispensed=0, collectT=3600, collectInt=60, maxconsecstuck=4):
         for n in range(collectT/collectInt):
             carryovernDispensed = self.dispenseHIfHatched(homecoordX=homecoordX, homecoordY=homecoordY, dispX=dispX, dispY=dispY, dispZ=dispZ, onlyifsure=onlyifsure, carefulZ=9, vacBurst=vacBurst, homeZ=homeZ, dispiter=dispiter, carryovernDispensed=carryovernDispensed, maxconsecstuck=maxconsecstuck)
             time.sleep(collectInt)
 
-    # Moves to coordinates and returns whether movement was detected
-    def detectFlyInArena(self, camcoordX, camcoordY, camcoordZ):
+    def detectFlyInArena(self, camcoordX, camcoordY, camcoordZ):		# Moves to coordinates and returns whether movement was detected
         self.moveToSpd(pt=[float(camcoordX), float(camcoordY), 0, camcoordZ, 10, 5000])
         self.dwell(10)
         flyremaining = self.detectFly( minpx=40, maxpx=2000)
         return flyremaining
 
-
-    # Returns limit pin state (Used in hit detection)
-    def getLimit(self):
+    def getLimit(self):     # if this breaks look at position of limit max B in the string!
         limitgot = 0
         while limitgot < 10:
             try:
@@ -759,13 +778,15 @@ class santaFe:
             except:
                 limitgot = limitgot + 1
         if limit == 1:
+            #self.home()
             print 'Limit is', limit, '!'
+            #self.smoothie.sendCmd("M999\n")
         return limit
 
     # Sends email containing images of arenanum arenas
-    def notifyUserFail(self, arenanum, mailfrom, attPic=0, qualPic=25, attImg=1, delFiles=1, robotEMailAccount='example@gmail.com', PWrobotEMailAccount='examplePW'):
-        gmail_user = robotEMailAccount 
-        gmail_password = PWrobotEMailAccount
+    def notifyUserFail(self, arenanum, mailfrom, attPic=0, qualPic=25, attImg=1, delFiles=1):
+        gmail_user = 'SantaFailure@gmail.com'  
+        gmail_password = 'H@rvard2017!'
         try:  
             server = smtplib.SMTP_SSL('smtp.gmail.com', 465)
         except:  
@@ -791,7 +812,7 @@ class santaFe:
             fp.close()
             arenanum = str(arenanum)
             msg.preamble = 'Arena ' + arenanum + ' failed to unload.'
-            msg['Subject'] = 'Failure: Arenas ' + arenanum + ' Withdraw'
+            msg['Subject'] = 'SantaFailure: Arenas ' + arenanum + ' Withdraw'
         if attPic == 1:
             arenanum = str(arenanum)
             self.light(True)
@@ -802,7 +823,7 @@ class santaFe:
             self.cam.stop_live()
             self.dwell(50)
             self.light(False)
-            msg['Subject'] = 'Failure: Arena ' + arenanum + ' Withdraw'
+            msg['Subject'] = 'SantaFailure: Arena ' + arenanum + ' Withdraw'
             msg = MIMEMultipart()
             msg.preamble = 'Arena ' + arenanum + ' failed to unload.'
             fp = open(arenanum + 'errImage.png', 'rb')
@@ -813,33 +834,33 @@ class santaFe:
             	os.remove(arenanum + 'errImage.png')
         if attPic == 0 and attImg == 0:
             arenanum = str(arenanum)
-            msg['Subject'] = 'Failure: Arena ' + arenanum + ' Withdraw'
-        msg['From'] = gmail_user
-        msg['To'] = gmail_user
-        server.sendmail(gmail_user, mailfrom, msg.as_string())
+            msg['Subject'] = 'SantaFailure: Arena ' + arenanum + ' Withdraw'
+        msg['From'] = 'SantaFailure@gmail.com'
+        msg['To'] = 'SantaFailure@gmail.com'
+        server.sendmail('SantaFailure@gmail.com', mailfrom, msg.as_string())
         server.quit()
         return
 
-    # Captures arena picture at location (Images named consecutively if multiple coordinates specified)
-    def SaveArenaPic(self, Xcoords, Ycoords, IndVect, qualPic=25, Zcam=40, ImgName='errImage.png'):
+    def SaveArenaPic(self, Xcoords, Ycoords, IndVect='NaN', qualPic=25, Zcam=40, ImgName='_errImage.png', Prefix='Arena_'):
         self.light(True)
         self.cam.start_live()
+        if IndVect == 'NaN':
+            IndVect = range(0,len(Xcoords))
         for ImgNum in range(len(Xcoords)):
             self.moveToSpd(pt=[float(Xcoords[ImgNum]), float(Ycoords[ImgNum]), 0, Zcam, 10, 5000])
             self.dwell(50)		# Put higher to reduce effect of motion-caused rig trembling on picture
             self.cam.snap_image()
             curInd = str(IndVect[ImgNum])
-            self.cam.save_image(curInd + 'errImage.png', 1, jpeq_quality=qualPic)
+            self.cam.save_image(Prefix + curInd + ImgName, 1, jpeq_quality=qualPic)
             self.dwell(10)
         self.cam.stop_live()
         self.light(False)
 
-    # Reads the most recent emails at associated gmail account and parses instructions (Incorrect instruction format will not cause error-state). Note: formatted for gmail and iOS Mail application.
-    def receiveMailInstruct(self, delMail=1, subjKeyVect=['INSTRUCT', 'A2H', 'H2A', 'SWP', 'SWPFL', 'HELP', 'CLCT'], robotEMailAccount='example@gmail.com', PWrobotEMailAccount='examplePW'):		# Remeber to add all programmed keywords!
+    def receiveMailInstruct(self, delMail=1, subjKeyVect=['INSTRUCT', 'A2H', 'H2A', 'SWP', 'SWPFL', 'HELP', 'CLCT']):		# Remeber to add all programmed keywords!
 	    try:
 	        pop_conn = poplib.POP3_SSL('pop.gmail.com')
-	        pop_conn.user(robotEMailAccount)
-	        pop_conn.pass_(PWrobotEMailAccount)
+	        pop_conn.user('SantaFailure@gmail.com')
+	        pop_conn.pass_('H@rvard2017!')
 	        messages = [pop_conn.retr(i) for i in reversed(range(1, len(pop_conn.list()[1]) + 1))]
 	        messages = ["\n".join(mssg[1]) for mssg in messages]
 	        messages = [parser.Parser().parsestr(mssg) for mssg in messages]
@@ -866,7 +887,6 @@ class santaFe:
 	    except:
 	        return None
 
-	# Puts robot in listen mode (Repeated receiveMailInstruct) and updates listening state in online monitor
     def listenMode(self, duration=60, listenInterval=10):		# in seconds
         print 'Listening for', duration, 'seconds in', listenInterval, 'second intervals.'
         # Puts monitor to mode 2 for listening
@@ -887,8 +907,7 @@ class santaFe:
             print 'Could not reach monitor URL.'
         return mail
 
-    # Translates correct email commands into preprogrammed robot routines (Incorrect values will cause error-state requiring manual robot reset)
-    def doInstruct(self, mailfrom, instruction, values, CamX, CamY, CamZ, ManipX, ManipY, arenaRad, HomeX, HomeY, HomeZwd, HomeZdp, turnZ, vacZ, dispX=639.5, dispY=113, dispZ=34, disponlyifsure=0, maxconsecstuck=6,robotEMailAccount='example@gmail.com', PWrobotEMailAccount='examplePW'):
+    def doInstruct(self, mailfrom, instruction, values, CamX, CamY, CamZ, ManipX, ManipY, arenaRad, HomeX, HomeY, HomeZwd, HomeZdp, turnZ, vacZ, dispX=639.5, dispY=113, dispZ=34, disponlyifsure=0, maxconsecstuck=6):
         if instruction == 'SWP':
             flyremainvect = self.sweep(CamX[values[0]:values[1]], CamY[values[0]:values[1]], camz=CamZ)
             unsurevect = self.sweep(CamX[flyremainvect], CamY[flyremainvect], camz=CamZ)
@@ -932,8 +951,8 @@ class santaFe:
                         print 'Missed opening at least once - realigning...'
                         self.homeZ()
         elif instruction == 'HELP':
-            gmail_user = robotEMailAccount  
-            gmail_password = PWrobotEMailAccount
+            gmail_user = 'SantaFailure@gmail.com'  
+            gmail_password = 'H@rvard2017!'
             try:  
                server = smtplib.SMTP_SSL('smtp.gmail.com', 465)
             except:  
@@ -948,15 +967,14 @@ class santaFe:
                 print 'Login went wrong...'
             msg = MIMEText('Format: Use KEYWORD in subject line. Enter arenas and settings as "#,#,#,..." without spaces.\n \nKEYWORDS: \nSWP: Sweeps from arenas [1] through [2] and sends back pictures of arenas in which motion was detected.\nSWPFL: Sends back pictures of arenas [1] through [2].\nA2H: Moves flies in arenas [1] through [2] to their homeplates. Vacuums at radian [3] and closes the lid at radian [4] using strategy [5].\nH2A: Same as A2H but from homeplates to arenas.\nCLCT: Starts virgin collection process for [1] seconds total every [2] seconds.\n \nExample:\nSubject: A2H\nText: 0,18,50,180,2.')
             msg['Subject'] = 'RE: SantaFe Remote Access Help'
-            msg['From'] = robotEMailAccount
+            msg['From'] = 'SantaFailure@gmail.com'
             msg['To'] = mailfrom
-            server.sendmail(robotEMailAccount, mailfrom, msg.as_string())
+            server.sendmail('SantaFailure@gmail.com', mailfrom, msg.as_string())
             server.quit()
         elif instruction == 'CLCT':
             self.collectHatchedForT(homecoordX=HomeX, homecoordY=HomeY, dispX=dispX, dispY=dispY, dispZ=dispZ, onlyifsure=disponlyifsure, carefulZ=9, vacBurst=2, homeZ=44, dispiter=1, carryovernDispensed=0, maxconsecstuck=maxconsecstuck, collectT=values[0], collectInt=values[1])
 
 
-    # Visual representation according to workspace and module dimensions (Hardcoded due to maximum workspace length used in current experiment)
     def visualizeInstruct(self, HXcoords, HYcoords, Xcoords, Ycoords, POIrad, dispx, dispy, instN, instHN=0, instdispN=0, start='home', ArenaSide='L'):
 		height = max(HYcoords)*2
 		width = max(HXcoords)*2
@@ -1077,7 +1095,6 @@ class santaFe:
 				cv2.destroyAllWindows()
 				return background
 
-	# Visual update of current command
     def updateCurInstruct(self, background, N, HXcoords, HYcoords, Xcoords, Ycoords, dispx, dispy, instN, ArenaSide='L', instHN=0, instdispN=0, start='home'):
 		update = background.copy()
 		update = cv2.flip(update,1)
@@ -1174,6 +1191,7 @@ class santaFe:
 				cv2.putText(background, str(instdispN[N]), (max(zoomHX*1.6) - int(zoomHX[instHN[N]]-POIrad/1.25), int(zoomHY[instHN[N]]+POIrad/3) ),fontFace=1, fontScale=0.7, color=(0,255-Fail*255,255*Fail))
 				background = cv2.flip(background,1)
 		elif updateWhich =='arena':
+			#cv2.circle(background, (Xcoords[instN[N]], Ycoords[instN[N]]), int(POIrad), (0, 255, 0), -1)
 			if start == 'home':
 				background = cv2.flip(background,1)
 				if instHN[N] <= 9:
@@ -1211,35 +1229,40 @@ class santaFe:
 		cv2.waitKey(1)
 		return background
 
-	# Simple Z-axis move command. First 2 inputs (X and Y axis) should be 0.
     def moveZ(self, pt):
         if (len(pt) != 5):
             print 'Error: incorrect coordinate string. Dropping moveZ instruction'
             return
+
         if ( self.isPtInBounds(pt) == False ):
             print 'Error: point out of bounds (less than zero, greater than maxExtents)'
             return
+
         cmd = "G01 Z{0[2]} A{0[3]} B{0[4]}\n".format(pt)
         self.smoothie.sendSyncCmd(cmd)
         self.dwell(1)
+
         self.currentPosition = pt
+
         return
 
-    # Complex move command. All axes and end effectors can be moved in unison.
+
     def moveTo(self, pt):
         if (len(pt) != 5):
             print 'Error: incorrect coordinate string:', pt, ' Dropping moveTo instruction'
             return
+
         if ( self.isPtInBounds(pt) == False ):
             print 'Error: point out of bounds (less than zero, greater than maxExtents)'
             return
+
         cmd = "G01 X{0[0]} Y{0[1]} Z{0[2]} A{0[3]} B{0[4]}\n".format(pt)
         self.smoothie.sendSyncCmd(cmd)
         self.dwell(1)
+
         self.currentPosition = pt
         return
 
-    # Complex move command with added speed parameter (Updates default speed)
     def moveToSpd(self, pt):
         if (len(pt) != 6):
             print 'Error: incorrect coordinate string. Dropping moveTo instruction'
@@ -1248,27 +1271,29 @@ class santaFe:
         if ( self.isPtInBounds(cord) == False ):
             print 'Error: point out of bounds (less than zero, greater than maxExtents)'
             return
+
         cmd = "G01 X{0[0]} Y{0[1]} Z{0[2]} A{0[3]} B{0[4]} F{0[5]}\n".format(pt)
         self.smoothie.sendSyncCmd(cmd)
         self.dwell(1)
+
         self.currentPosition = pt
         return
 
-    # Moves robot relative to current position, not absolute coordinates.
     def moveRel(self, pt):
+        #print "Curr pos:", self.currentPosition
         self.moveTo( map(sum,zip(self.currentPosition, pt)) )
 
-    # Moves robot to all coordinates in the list (Needs 5 scalars per list entry)
     def moveXYList(self, ptList):
+        # TODO: check shape of list
         for pt in ptList:
             self.moveXY(pt)
         return
 
-    # Check whether desired coordinate (vector of exactly len 5) is larger than maximum workspace size or smaller than 0
     def isPtInBounds(self, pt):
         if ( len(pt) != 5 ):
             print 'Error: incorrect coordinate length.'
             return False
+
         if (  ( pt[0] > self.maxExtents[0] ) or
               ( pt[1] > self.maxExtents[1] ) or
               ( pt[2] > self.maxExtents[2] ) or
@@ -1279,7 +1304,6 @@ class santaFe:
         else:
             return True
 
-    # Wait until last robot action (movement) is completed
     def dwell(self, t):
 		while True:
 			try:
@@ -1290,7 +1314,6 @@ class santaFe:
 				print 'Error: retrying to send dwell command'
 		return
 
-	# Controls light-circle LED around camera
     def light(self, onOff = False):
         if ( onOff == True ):
             cmd = "M48\n"
@@ -1299,7 +1322,6 @@ class santaFe:
         self.smoothie.sendCmd(cmd)
         return
 
-    # Controls positive air pressure out of fly manipulating end effector
     def flyManipAir(self, onOff = False):
         if (onOff == True):
             cmd = "M46\n"
@@ -1308,7 +1330,6 @@ class santaFe:
         self.smoothie.sendCmd(cmd)
         return
 
-    # Controls negative air pressure out of fly manipulating end effector
     def flyManipVac(self, onOff = False):		# rerouted pins to smallPart vacuum
         if (onOff == True):
             cmd = "M44\n"
@@ -1317,7 +1338,6 @@ class santaFe:
         self.smoothie.sendCmd(cmd)
         return
 
-    # Controls positive air pressure out of part manipulating end effector (Releases part)
     def smallPartManipAir(self, onOff = False):
         if (onOff == True):
             cmd = "M42\n"
@@ -1326,7 +1346,6 @@ class santaFe:
         self.smoothie.sendCmd(cmd)
         return
 
-    # Controls negative air pressure out of part manipulating end effector (Holds part)
     def smallPartManipVac(self, onOff = False):		# rerouted to fly vacuum
         if (onOff == True):
             cmd = "M40\n"
@@ -1335,8 +1354,96 @@ class santaFe:
         self.smoothie.sendCmd(cmd)
         return
 
-    # Finds immobile fly on white surface (CO2 board)
+    def flyManipVenturi(self, onOff = False):
+        print "WARNING - flyManipVenturi deprecated! Call location:"
+        traceback.print_exc(file=sys.stdout)
+        return
+
+    def smallPartManipVenturi(self, onOff = False):
+        print "WARNING - smallPartManipVenturi deprecated! Call location:"
+        traceback.print_exc(file=sys.stdout)
+        return
+
+    def puffForTime(self, duration):
+        print 'Puffing for', duration, 'seconds'
+        self.flyManip(False)
+        self.vacuum(False)
+        self.air(True)
+        self.smallPartManip(True)
+        time.sleep(duration)
+        self.smallPartManip(False)
+        self.air(False)
+        return
+
+    def suckForTime(self, duration):
+        print 'Sucking for', duration, 'seconds'
+        self.air(False)
+        self.smallPartManip(False)
+        self.flyManip(True)
+        self.vacuum(True)
+        time.sleep(duration)
+        self.flyManip(False)
+        self.vacuum(False)
+        return
+
+    def dipAndGetFly(self, pt, duration, plateBool):
+        print 'Dipping to get fly.'
+        pt2=list(pt)
+        pt2[4]+=10+plateBool*2
+
+        self.puffForTime(0.2)
+        time.sleep(0.05)
+        self.puffForTime(0.2)
+        time.sleep(0.05)
+        self.flyManip(True)
+        self.vacuum(True)
+        self.moveTo(pt2)
+        time.sleep(duration)
+
+        pt2[4]+=-(10+plateBool*2)
+        self.moveTo(pt2)
+        return
+
+    def depositInMaze(self, pt, duration):
+        print 'Dipping to vent fly.'
+        pt2=list(pt)
+        pt2[4]+=10
+        self.moveTo(pt2)
+        pt2[1]+=-self.mazeSlideOffset
+        self.moveTo(pt2)
+        self.puffForTime(duration)
+        pt2[1]+=self.mazeSlideOffset
+        self.moveTo(pt2)
+        pt2[4]+=-10
+        self.moveTo(pt2)
+        return
+
+    def suckFromMaze(self, pt, duration):
+        print 'Dipping to vent fly.'
+        pt2=list(pt)
+        pt2[4]+=10
+        self.moveTo(pt2)
+        pt2[1]+=-self.mazeSlideOffset
+        self.moveTo(pt2)
+        self.suckForTime(duration)
+        pt2[1]+=self.mazeSlideOffset
+        self.moveTo(pt2)
+        pt2[4]+=-10
+        self.moveTo(pt2)
+        return
+
+    def dipAndDropFly(self, pt, duration):
+        print 'Dipping to vent fly.'
+        pt2=list(pt)
+        pt2[4]+=10
+        self.moveTo(pt2)
+        self.puffForTime(duration)
+        pt2[4]+=-10
+        self.moveTo(pt2)
+        return
+
 	def findFly(self, image):
+        # Cribbed from Will's imgprocess script
         # Convert BGR to HSV
 		h, s, v = cv2.split(cv2.cvtColor(image, cv2.COLOR_BGR2HSV))
         # Now threshold in the value channel
@@ -1347,6 +1454,8 @@ class santaFe:
 			mmnts = cv2.moments(c)
 			if ( 20000 < mmnts['m00'] < 200000 ):
                 # Center of contour is m10/m00, m01/m00
+                # We want transform from pixels to mm, using self.FOV
+                # Find the shape of the image
 				(pxHeight, pxWidth) = mask.shape
 				imgCoords = np.array([ int(mmnts['m10'] / mmnts['m00'] ), int( mmnts['m01'] / mmnts['m00']) ], dtype=np.int16)
 				cv2.line(image, tuple(imgCoords - np.array([ 20, 0])), tuple(imgCoords + np.array([ 20, 0])), (0,0,0), 5)
@@ -1407,9 +1516,15 @@ class santaFe:
 		indvect = np.array(indvect[detectvect])
 		return indvect
 
-	# Finds circle in input image. Used to find opening in arena lid to allow access.
+
+	# Finds circle in input image
     def findOpening(self, image, slowmode=False, MAX_SIZE=74, MIN_SIZE=63, startp1=119, startp2=142, startp3=2.7, imgshow=0):
         result = []
+        #MAX_SIZE = 75  # range of size in pixels of the circle lid hole
+        #MIN_SIZE = 60
+        #cv2.namedWindow("output", cv2.WINDOW_NORMAL)
+        #cv2.imshow("thresh", thresh)
+        #cv2.waitKey(0)
         startp1 = startp1
         startp2 = startp2
         startp3 = startp3
@@ -1417,30 +1532,39 @@ class santaFe:
         detect = 0
         if slowmode == False:
             image = cv2.imread(image)
+            #cv2.imshow("output", image)
+            #cv2.waitKey()
             image = cv2.resize(image, (1280, 960))
+            #cv2.imshow("resized", image)
+            #cv2.waitKey()
             output = image.copy()
             gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+            #cv2.imshow("gray", gray)
+            #cv2.waitKey(0)
             thresh = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2)
             while detect == 0:      # decrease sensitivity until at least one circle is found
+                #print 'sensitivity lowered to:', startp2
                 circles = cv2.HoughCircles(thresh,cv2.cv.CV_HOUGH_GRADIENT,startp3,50, param1=startp1,param2=startp2,minRadius=MIN_SIZE,maxRadius=MAX_SIZE)
+                 ## change param 1 and 2 for more-less circles
                 if  circles is not None:
                     # convert the (x, y) coordinates and radius of the circles to integers
                     circles = np.round(circles[0, :]).astype("int")
                     #print 'detected', len(circles), 'circles'
                     # loop over the (x, y) coordinates and radius of the circles
                     for i in range(0,len(circles)): 
-                        # draw the circle in the output image, then draw a rectangle
+                         # draw the circle in the output image, then draw a rectangle
                         # corresponding to the center of the circle
                         cv2.circle(output, (circles[i,0], circles[i,1]), circles[i,2], (0, 255, 0), 4)
                         cv2.rectangle(output, (circles[i,0] - 5, circles[i,1] - 5), (circles[i,0] + 5, circles[i,1] + 5), (0, 128, 255), -1)
                     if len(circles) == 1:
                         detect = 1
-                    elif startp2 > 100 and len(circles) > 1:
+                    elif startp2 > 100 and len(circles) > 1:     #probably not starting to find only one circle
                         startp2 = startp2 - 3
                     elif startp2 <= 100 or len(circles) > 1:
-                        detect = 1      # to leave loop if too many circles get found repeatedly -- unlikely to result in wrong angle as it needs validation
+                        detect = 1      # to get out if too many circles get found repeatedly -- unlikely to result in wrong angle as it needs validation
                 else:
-                    startp2 = startp2 - 3       # decrease sensitivity if no circles were found
+                    startp2 = startp2 - 3       # get less sensitive if no circles were found
+                    #print 'reducing sensitivity to...', startp2
             if imgshow == 1:
             	cv2.imshow("thresh", thresh)
             	cv2.imshow("output", output)
@@ -1462,7 +1586,7 @@ class santaFe:
                     else:
                         print 'Detected ',len(circles), 'circles.'
                     detect = 1
-                    # show the output image
+                        # show the output image
                     for i in range(0,len(circles)): 
                      # draw the circle in the output image, then draw a rectangle
                      # corresponding to the center of the circle
@@ -1473,28 +1597,32 @@ class santaFe:
                             cv2.imshow("output", output)
                             cv2.waitKey(0)
                 else:
-                    startp2 = startp2 - 3       # decrease sensitivity if no circles were found
+                    startp2 = startp2 - 3       # get less sensitive if no circles were found
+                    #print 'reducing sensitivity...'
         return circles
 
     # Returns degrees of a point's coordinates relative to the image midpoint (the opening)
     def getDegs(self, img, img_width=1280, img_height=960):
         imgmid = [img_width/2, img_height/2]
-        if len(img[:,1]) >= 2 and not (img[0,0] - img[1,0] >= 150) and not (img[0,1] - img[1,1] >= 150):    # allows 2 close circles and takes mean coords instead (Accuracy - Iteration tradeoff. Works well if less than 10px apart).
+        if len(img[:,1]) >= 2 and not (img[0,0] - img[1,0] >= 150) and not (img[0,1] - img[1,1] >= 150):    # allows 2 close circles and takes mean coords
             img[0,0] = (img[0,0] + img[1,0])/2
             img[0,1] = (img[0,1] + img[1,1])/2
             print 'Multiple adjoining openings detected - correcting target coordinates...'
         dx = img[0,0] - imgmid[0]
+        #print 'x difference:', img[0,0], dx
         dy = (img_height - img[0,1]) - imgmid[1]
+        #print 'y difference:', img[0,1], dy
         rads = math.atan2(-dy,dx)
         rads %= 2*math.pi
         degs = math.degrees(rads)
         degs = (degs-90)* (-1)
-        if degs <= 0:       # converts degrees
+        if degs <= 0:       # ghettomath but works out
             degs = 360 + degs
         if degs <= 180:
             degs = (degs - 180) * (-1)
         elif degs >= 180 and degs <= 360:
             degs = ((degs - 360) * (-1)) + 180
+        #print 'detected at', degs, 'degrees'
         return degs
 
     # Combines findOpening and getDegs
@@ -1510,6 +1638,7 @@ class santaFe:
             certain = 0
             while certain != 1:
                 tempdeg = np.arange(2)
+                #print 'at start tempdeg is', tempdeg
                 for i in range(0,2):
                     self.light(True)
                     time.sleep(0.2)
@@ -1527,8 +1656,10 @@ class santaFe:
                     self.light(False)
                     img = self.findOpening('curImage.jpg', slowmode=slwmd, MAX_SIZE=trymax, MIN_SIZE=trymin, startp1=try1, startp2=try2, startp3=try3, imgshow=imgshow)
                     tempdeg[i] = self.getDegs(img)
+                #    print 'after loop tempdeg is', tempdeg
                 if abs(tempdeg[0] - tempdeg[1]) <= precision:
                     certain = 1
+                    #print 'final degree decision is', np.mean(tempdeg)
                     return np.mean(tempdeg)
         elif slowmode == False:
             self.light(True)
