@@ -4,7 +4,7 @@
 #
 #  File: robotutil.py
 #  Description: Contains classes and functions used to control
-#  the FlySorter automated experiment platform (project name Santa Fe).
+#  the FlySorter automated experiment platform (project name MAPLE).
 #  High-level commands can be called in primary experimental scripts with relevant coordinates.
 
 
@@ -32,7 +32,7 @@ import pyicic.IC_ImagingControl
 
 
 # Serial communications class that is used for multiple devices.
-# In Santa Fe, the smoothie board is a serial devices. The smoothie is connected directly
+# In MAPLE, the smoothie board is a serial devices. The smoothie is connected directly
 # via USB.
 #
 # 1. Smoothieboard - controls X, Y, Z0, Z1 and Z2 (X, Y, Z, A and B axes, respectively)
@@ -42,9 +42,11 @@ import pyicic.IC_ImagingControl
 # http://smoothieware.org/supported-g-codes and
 # http://reprap.org/wiki/G-code
 #
+# This class is also used to communicate with the Fly Dispenser (if connected & used).
+# The Dispenser, similar to the Smoothie, connects by USB and appears as a COM port.
 
 
-class santaFeSerial:
+class serialDevice:
     """Serial class for generic serial device."""
 
     WaitTimeout = 3
@@ -177,16 +179,17 @@ class santaFe:
         print "Port list:", portList
         for portDesc in portList:
             # print "Trying port", portDesc
-            tempPort = santaFeSerial(portDesc, 115200)
+            tempPort = serialDevice(portDesc, 115200)
             if tempPort.sendCmdGetReply("version\n").startswith("Build version"):
                 print "Port:", portDesc, "is smoothie."
                 self.smoothiePort = portDesc
                 self.smoothie = tempPort
-                continue 
+                portList.remove(portDesc)
+                continue
             tempPort.close()
 
         for portDesc in portList:
-            tempPort = santaFeSerial(portDesc, 9600)
+            tempPort = serialDevice(portDesc, 9600)
             tempPort.sendCmd('V')
             time.sleep(1)
             r = tempPort.getSerOutput()
@@ -328,7 +331,7 @@ class santaFe:
         self.dwell(1)
         self.currentPosition = pt
         return
-    
+
     def moveCirc(self, r, n, endpos, spd, rest, full=False):        # use moveCirc2 whenever possible (smoother movement)
     ## circular motion around current point; r: radius, n: amount of points (fine-ness),
     ## endpos: movement end point in multiples of pi, spd; speed, rest: time between movements (fine-ness)
@@ -461,7 +464,7 @@ class santaFe:
 			descendZ = z-1
 		posbegin = self.getCurrentPosition()
 		self.moveZ(pt=[posbegin[0],posbegin[1],0,0,z-descendZ])
-		for i in range(1, descendZ+2):    
+		for i in range(1, descendZ+2):
 			self.dwell(1)
 			self.moveRel(pt=[0,0,0,0,1])
 			careful = self.getLimit()
@@ -529,7 +532,7 @@ class santaFe:
         self.dwell(t=1)
         degs1 = int(self.findDegs(slowmode=True, precision=4, MAX_SIZE=74, MIN_SIZE=63, startp1=119, startp2=142, startp3=2.7, imgshow=0))
         self.dwell(t=5)
-        self.moveToSpd(pt=[float(arenacoordX), float(arenacoordY), 0, camcoordZ, 10, 5000])    
+        self.moveToSpd(pt=[float(arenacoordX), float(arenacoordY), 0, camcoordZ, 10, 5000])
         self.dwell(t=10)
         Mid1 = self.getCurrentPosition()
         self.dwell(1)
@@ -544,7 +547,7 @@ class santaFe:
             print 'Possible misalignment - resetting...'
             self.home()
             return {'miss': miss, 'missonce': missonce}
-        elif miss != 1:     
+        elif miss != 1:
             self.moveZ([tempCoord['endXY'][0],tempCoord['endXY'][1],0,0,vacZ])
             if strategy == 1:
 	            self.smallPartManipVac(False)
@@ -631,7 +634,7 @@ class santaFe:
         self.dwell(t=1)
         degs1 = int(self.findDegs(slowmode=True, precision=4, MAX_SIZE=74, MIN_SIZE=63, startp1=119, startp2=142, startp3=2.7, imgshow=0))
         self.dwell(t=5)
-        self.moveToSpd(pt=[float(arenacoordX), float(arenacoordY), 0, camcoordZ, 10, 5000])    
+        self.moveToSpd(pt=[float(arenacoordX), float(arenacoordY), 0, camcoordZ, 10, 5000])
         self.dwell(t=10)
         Mid1 = self.getCurrentPosition()
         self.dwell(1)
@@ -644,7 +647,7 @@ class santaFe:
             print 'Possible misalignment - full reset...'
             self.home()
             return {'miss': miss, 'missonce': missonce}
-        elif miss != 1:     
+        elif miss != 1:
             self.moveZ([tempCoord['endXY'][0],tempCoord['endXY'][1],0,0,airZ])
             self.smallPartManipVac(False)
             self.dwell(t=5)
@@ -764,19 +767,19 @@ class santaFe:
 
     # Sends email containing images of arenanum arenas
     def notifyUserFail(self, arenanum, mailfrom, attPic=0, qualPic=25, attImg=1, delFiles=1, robotEMailAccount='example@gmail.com', PWrobotEMailAccount='examplePW'):
-        gmail_user = robotEMailAccount 
+        gmail_user = robotEMailAccount
         gmail_password = PWrobotEMailAccount
-        try:  
+        try:
             server = smtplib.SMTP_SSL('smtp.gmail.com', 465)
-        except:  
+        except:
             print 'SMTP went wrong...'
         try:
             server.ehlo()
-        except:  
+        except:
             print 'Handshake went wrong...'
         try:
             server.login(gmail_user, gmail_password)
-        except:  
+        except:
             print 'Login went wrong...'
         if attImg == 1:
             msg = MIMEMultipart()
@@ -932,19 +935,19 @@ class santaFe:
                         print 'Missed opening at least once - realigning...'
                         self.homeZ()
         elif instruction == 'HELP':
-            gmail_user = robotEMailAccount  
+            gmail_user = robotEMailAccount
             gmail_password = PWrobotEMailAccount
-            try:  
+            try:
                server = smtplib.SMTP_SSL('smtp.gmail.com', 465)
-            except:  
+            except:
                 print 'SMTP went wrong...'
             try:
                 server.ehlo()
-            except:  
+            except:
                 print 'Handshake went wrong...'
             try:
                 server.login(gmail_user, gmail_password)
-            except:  
+            except:
                 print 'Login went wrong...'
             msg = MIMEText('Format: Use KEYWORD in subject line. Enter arenas and settings as "#,#,#,..." without spaces.\n \nKEYWORDS: \nSWP: Sweeps from arenas [1] through [2] and sends back pictures of arenas in which motion was detected.\nSWPFL: Sends back pictures of arenas [1] through [2].\nA2H: Moves flies in arenas [1] through [2] to their homeplates. Vacuums at radian [3] and closes the lid at radian [4] using strategy [5].\nH2A: Same as A2H but from homeplates to arenas.\nCLCT: Starts virgin collection process for [1] seconds total every [2] seconds.\n \nExample:\nSubject: A2H\nText: 0,18,50,180,2.')
             msg['Subject'] = 'RE: SantaFe Remote Access Help'
@@ -1063,7 +1066,7 @@ class santaFe:
 		cv2.putText(background, 'Home', (width-43, 30),fontFace=1, fontScale=0.7, color=(0,0,0))
 		key = 0
 		while key == 0:
-			print 'Press ENTER or SPACE to accept.\nPress ESC to cancel instruction.' 
+			print 'Press ENTER or SPACE to accept.\nPress ESC to cancel instruction.'
 			cv2.imshow("Instruction", background)
 			key = cv2.waitKey(0)
 			if key != 27 and key != 13 and key != 32:
@@ -1089,7 +1092,7 @@ class santaFe:
 				angle = np.arctan2(p[1]-q[1], p[0]-q[0])
 				p = (int(q[0] + 9 * np.cos(angle + np.pi/4)),
 				int(q[1] + 9 * np.sin(angle + np.pi/4)))
-				cv2.line(update, p, q, (0, 255, 255), 1, 1, 0) 
+				cv2.line(update, p, q, (0, 255, 255), 1, 1, 0)
 				p = (int(q[0] + 9 * np.cos(angle - np.pi/4)),
 				int(q[1] + 9 * np.sin(angle - np.pi/4)))
 				cv2.line(update, p, q, (0, 255, 255), 1, 1, 0)
@@ -1100,7 +1103,7 @@ class santaFe:
 				angle = np.arctan2(p[1]-q[1], p[0]-q[0])
 				p = (int(q[0] + 9 * np.cos(angle + np.pi/4)),
 				int(q[1] + 9 * np.sin(angle + np.pi/4)))
-				cv2.line(update, p, q, (0, 255, 255), 1, 1, 0) 
+				cv2.line(update, p, q, (0, 255, 255), 1, 1, 0)
 				p = (int(q[0] + 9 * np.cos(angle - np.pi/4)),
 				int(q[1] + 9 * np.sin(angle - np.pi/4)))
 				cv2.line(update, p, q, (0, 255, 255), 1, 1, 0)
@@ -1112,7 +1115,7 @@ class santaFe:
 				angle = np.arctan2(p[1]-q[1], p[0]-q[0])
 				p = (int(q[0] + 9 * np.cos(angle + np.pi/4)),
 				int(q[1] + 9 * np.sin(angle + np.pi/4)))
-				cv2.line(update, p, q, (0, 255, 255), 1, 1, 0) 
+				cv2.line(update, p, q, (0, 255, 255), 1, 1, 0)
 				p = (int(q[0] + 9 * np.cos(angle - np.pi/4)),
 				int(q[1] + 9 * np.sin(angle - np.pi/4)))
 				cv2.line(update, p, q, (0, 255, 255), 1, 1, 0)
@@ -1123,7 +1126,7 @@ class santaFe:
 				angle = np.arctan2(p[1]-q[1], p[0]-q[0])
 				p = (int(q[0] + 9 * np.cos(angle + np.pi/4)),
 				int(q[1] + 9 * np.sin(angle + np.pi/4)))
-				cv2.line(update, p, q, (0, 255, 255), 1, 1, 0) 
+				cv2.line(update, p, q, (0, 255, 255), 1, 1, 0)
 				p = (int(q[0] + 9 * np.cos(angle - np.pi/4)),
 				int(q[1] + 9 * np.sin(angle - np.pi/4)))
 				cv2.line(update, p, q, (0, 255, 255), 1, 1, 0)
@@ -1134,7 +1137,7 @@ class santaFe:
 			angle = np.arctan2(p[1]-q[1], p[0]-q[0])
 			p = (int(q[0] + 9 * np.cos(angle + np.pi/4)),
 			int(q[1] + 9 * np.sin(angle + np.pi/4)))
-			cv2.line(update, p, q, (0, 255, 255), 1, 1, 0) 
+			cv2.line(update, p, q, (0, 255, 255), 1, 1, 0)
 			p = (int(q[0] + 9 * np.cos(angle - np.pi/4)),
 			int(q[1] + 9 * np.sin(angle - np.pi/4)))
 			cv2.line(update, p, q, (0, 255, 255), 1, 1, 0)
@@ -1428,7 +1431,7 @@ class santaFe:
                     circles = np.round(circles[0, :]).astype("int")
                     #print 'detected', len(circles), 'circles'
                     # loop over the (x, y) coordinates and radius of the circles
-                    for i in range(0,len(circles)): 
+                    for i in range(0,len(circles)):
                         # draw the circle in the output image, then draw a rectangle
                         # corresponding to the center of the circle
                         cv2.circle(output, (circles[i,0], circles[i,1]), circles[i,2], (0, 255, 0), 4)
@@ -1463,7 +1466,7 @@ class santaFe:
                         print 'Detected ',len(circles), 'circles.'
                     detect = 1
                     # show the output image
-                    for i in range(0,len(circles)): 
+                    for i in range(0,len(circles)):
                      # draw the circle in the output image, then draw a rectangle
                      # corresponding to the center of the circle
                         if imgshow == 1:
@@ -1553,6 +1556,7 @@ def cameraInit():
     cam = ic_ic.get_device(cam_names[0])
     cam.open()
     cam.gain.value = 10
+    cam.exposure.auto = False
     cam.exposure.value = -7
     cam.set_video_format('BY8 (2592x1944)')
     cam.set_frame_rate(4.00)

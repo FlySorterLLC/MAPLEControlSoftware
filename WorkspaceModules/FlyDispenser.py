@@ -23,7 +23,7 @@ class FlyDispenser:
         print "Port list:", portList
         for portDesc in portList:
             print "Trying port:", portDesc
-            tempPort = robotutil.santaFeSerial(portDesc)
+            tempPort = robotutil.serialDevice(portDesc)
             tempPort.sendCmd('V')
             time.sleep(1)
             r = tempPort.getSerOutput()
@@ -44,7 +44,7 @@ class FlyDispenser:
         if self.dispenserPort is not None:
             self.dispenserPort.close()
         return
-    
+
     # Returns 0 on success, 1 on failure
     def dispenseFly(self):
         # Send command ("F")
