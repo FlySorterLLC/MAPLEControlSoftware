@@ -4,20 +4,7 @@
 
 ## Triangular maze array (original style) class file
 
-import os
-import math
-import cv2
 import numpy as np
-import sys
-import traceback
-import glob
-import serial
-import time
-import ConfigParser
-import random as rand
-import pyicic.IC_ImagingControl
-sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
-import robotutil as robot
 
 class TriangleMaze:
 

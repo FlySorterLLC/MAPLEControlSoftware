@@ -101,7 +101,7 @@ Modifier keys:
     elif( key == ord(' ') ):
         img = cv2.resize(robot.captureImage(), imgSize)
     elif( key == ord('m') ):
-        imageMode = not imageMode
+		imageMode = not imageMode
     elif( key == ord('a') ):
         robot.moveRel(np.array([10.0, 0.0, 0.0, 0.0, 0.0]))
     elif( key == ord('d') ):
@@ -164,15 +164,15 @@ Modifier keys:
         robot.moveRel(np.array([0.0, 0.0, 0.0, 0.0, 0.1]))
     # Capture the current image and save it to a file img X.png
     elif( key == ord('c') ):
-        img = cv2.resize(robot.captureImage(), imgSize)
-        i = 0
-        filename = "circlelid" + str(i) + ".png"
-        while os.path.isfile(filename):
-            i += 1
-            filename = "circlelid" + str(i) + ".png"
+    	img = cv2.resize(robot.captureImage(), imgSize)
+    	i = 0
+    	filename = "circlelid" + str(i) + ".png"
+    	while os.path.isfile(filename):
+    		i += 1
+    		filename = "circlelid" + str(i) + ".png"
     	
-        cv2.imwrite(filename, img)
-        targets = processor.findOpening(filename)
+    	cv2.imwrite(filename, img)
+    	targets = processor.findOpening(filename)
         pos = robot.getCurrentPosition()
         if targets:
         	a, b = targets[0]

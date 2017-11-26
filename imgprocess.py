@@ -2,7 +2,7 @@
 
 ## Copyright (c) 2015, William Long
 ## Machine Vision code to take images of flies and return the locations (in pixels) of
-## all flies in the image.
+## all flies in the image. 
 ## Also draws the contours, bounding rectangles, and centroids of each fly
 
 ## By: Will Long
@@ -29,21 +29,21 @@ mazeLocation = (3000, 3000, 0, 0, 0)
 imageSize = (1900/PPMM, 1900/PPMM) #(1900, 1900) in pixels
 
 class imageProcess:
-
-    #processImage takes an image and executes some preliminary editing and
+    
+    #processImage takes an image and executes some preliminary editing and 
     #thresholding in order to better identify flies.
     #Specifically, it thresholds images for objects within a color range
-
+    
     #Takes an image array as an argument and returns the image
     def processImage(self, image):
-
+        
         frame = cv2.imread(image)
         # Convert BGR to HSV
         hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
 
         # define range of red color in HSV
         lower_red = np.array([0,0,0])
-
+        
         upper_red = np.array([255,250,100])
         # upper_red = np.array([255,50,250])
 
@@ -59,11 +59,11 @@ class imageProcess:
         return res
 
     def findOpening(self, image):
-
+        
         result = []
         MAX_SIZE = 60  # range of size in pixels of the circle lid hole
         MIN_SIZE = 35
-
+        
         image = cv2.imread(image)
 
         # Resizing the image standardizes image inputs
@@ -72,14 +72,14 @@ class imageProcess:
 
         # Convert to grayscale
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-
+        
         # Apply a strong Gaussian Blur to remove small distractions
-        blur = cv2.GaussianBlur(gray, (11,11),0)
+        blur = cv2.GaussianBlur(gray, (11,11),0) 
 
         # Threshold the image
         thresh = cv2.adaptiveThreshold(blur, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2)
         cv2.imshow("Thresh", thresh)
-
+        
         circles = cv2.HoughCircles(thresh,cv2.cv.CV_HOUGH_GRADIENT,1.3,300,
                                    param1=50,param2=70,minRadius=MIN_SIZE,maxRadius=MAX_SIZE)
 
@@ -87,7 +87,7 @@ class imageProcess:
         if circles is not None:
             # convert the (x, y) coordinates and radius of the circles to integers
             circles = np.round(circles[0, :]).astype("int")
-
+        
             # loop over the (x, y) coordinates and radius of the circles
             for (x, y, r) in circles:
 
@@ -99,12 +99,12 @@ class imageProcess:
 	                    result.append((x,y))
 	                    cv2.circle(output, (x, y), r, (0, 255, 0), 4)
 	                    cv2.rectangle(output, (x - 5, y - 5), (x + 5, y + 5), (0, 128, 255), -1)
-
+    
         cv2.circle(output,(420,300), 280, (0,255,0), 3, -1)
         cv2.circle(output,(420,300), 150, (0,255,0), 3, -1)
         cv2.imshow("Output", output)
         cv2.waitKey(0)
-
+        
         return result
 
     def findOpening2(self, image):
@@ -141,12 +141,12 @@ class imageProcess:
     # 3. Returns the center of the bounding rectangle in pixel coordinates
     #    (x,y) with the origin at the top left hand side and draws a blue dot
     # takes image file as an argument and returns an array of all coordinate pairs
-
+    
     def returnFlies(self,image, reference):
-
+        
         img = image
         # img = cv2.resize(img,(400,500))     #have to resize image otherwise it's too big!
-
+        
         gray = cv2.cvtColor(img,cv2.COLOR_BGR2GRAY)
         ret,gray = cv2.threshold(gray,127,255,0)
         mask = np.zeros(gray.shape,np.uint8)
@@ -155,7 +155,7 @@ class imageProcess:
         contours, hier = cv2.findContours(gray,cv2.RETR_LIST,cv2.CHAIN_APPROX_SIMPLE)
 
         flyPixelXY = []      #list of fly coordinates in pixels
-
+        
         for cnt in contours:
 
             if 1500<cv2.contourArea(cnt)<25000:
@@ -164,20 +164,20 @@ class imageProcess:
                 x,y,w,h = cv2.boundingRect(cnt)
                 cv2.rectangle(img,(x,y),(x+w,y+h),(0,0,255),2)
                 flyPixelXY.append((x+w/2,y+h/2))
-
+            
         for i in range(len(flyPixelXY)):
             cv2.circle(img, flyPixelXY[i], 7, 255,-1)
-
+        
         cv2.circle(img, reference, 7, (0, 0, 255),-1) #draw a red dot at the reference point
-
+        
         flyRobotXY = []    #fly coordinates in millimeters from the reference point
-
+        
         for (x, y) in flyPixelXY:
             flyRobotXY.append(((x - reference[0])/PPMM, (y - reference[1])/PPMM))
-
+            
         for (x, y) in flyRobotXY:
             cv2.circle(img, (reference[0] + x*PPMM, reference[1] + y*PPMM), 7, (0, 0, 255),-1)
-
+        
         cv2.imwrite("res2.bmp", img)
         return flyRobotXY
 
@@ -190,19 +190,19 @@ class imageProcess:
         cv2.waitKey(0)
         cv2.destroyAllWindows()
 
-
+        
     def execute(self, image, reference):
         result = self.processImage(image)
         return self.returnFlies(result, reference)
 
 
 # -------   Test Programs ------------
-#a = imageProcess()
+a = imageProcess()
 
 
 # cv2.imshow("Processed Lid", a.watershed("img11.png"))
 #print a.findOpening("temp_img.png")
-#a.findOpening2("temp_img.png")
+a.findOpening2("temp_img.png")
 # print a.findOpening("img2.png")
 # print a.findOpening("img3.png")
 # print a.findOpening("img4.png")
