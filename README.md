@@ -1,9 +1,56 @@
-# Santa Fe Control Software
+# MAPLE v2 Control Software
 
 This repository contains the software to control the FlySorter fly manipulation platform,
-specifically the hardware version Santa Fe.
+specifically the hardware version MAPLE version 2 ().
 
 The software is distributed under the GPL v2.0 license. See the LICENSE file for more details.
+
+Installation (Windows only, for now)
+------------
+
+1. Install Python 2.7
+
+https://www.python.org/download/releases/2.7/
+
+Choose the appropriate installer package (x86 or x86-64) for your system. Preferable to install in default location (C:\python27)
+
+Add c:\python27 and c:\python27\scripts to your path.
+
+2. Install pip, numpy, OpenCV, pyserial & "future"
+
+Download https://bootstrap.pypa.io/get-pip.py and then run it.
+
+https://pypi.python.org/pypi/numpy -- you're looking for the installer like numpy-1.13.3-2-cp27-none-win32.whl or numpy-1.13.3-cp27-none-win_amd64.whl
+From a command prompt, run pip install c:\path\to\numpy\file\numpy-1.13.3-2-cp27-none-win32.whl (change path and filename as appropriate)
+Double check by running python and typing: import numpy
+
+https://pypi.python.org/pypi/opencv-python -- same as numpy...
+
+https://pypi.python.org/pypi/pyserial -- ditto
+
+From a command prompt, type: pip install future
+This module makes some code written for Python 3.x compatible with Python 2.7, specifically py-ic-imaging-control
+
+3. Install driver & SKD for The Imaging Source cameras (optionally, viewer)
+
+https://www.theimagingsource.com/support/downloads-for-windows/
+* Device Driver for USB Cameras
+* IC Imaging Control C Library
+* optionally IC Capture - image acquisition
+
+You'll have to add the DLL directory to your path at this point, which should be:
+
+C:\Users\username\Documents\The Imaging Source Europe GmbH\TIS Grabber DLL\bin\x64
+  OR
+C:\Users\username\Documents\The Imaging Source Europe GmbH\TIS Grabber DLL\bin\win32
+
+depending on which architecture you've got.
+
+4. Install py-ic-imaging-control
+
+https://github.com/morefigs/py-ic-imaging-control - download archive as zip, unpack, then, in command prompt window, run: python setup.py install
+
+5. Download this github repository (https://github.com/FlySorterLLC/SantaFeControlSoftware).
 
 System Architecture
 -------------------

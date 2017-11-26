@@ -4,7 +4,20 @@
 
 ## FlyPlate (96 well plate) class file
 
+import os
+import math
+import cv2
 import numpy as np
+import sys
+import traceback
+import glob
+import serial
+import time
+import ConfigParser
+import random as rand
+import pyicic.IC_ImagingControl
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+import robotutil as robot
 
 class FlyPlate:
 
@@ -61,3 +74,52 @@ class FlyPlate:
             return
         coords = self.startWellPoint + (int(i/12))*self.minorBasis + (i%12)*self.majorBasis
         return coords
+
+    # Highest order command to withdraw a single fly from a single well in the housing module
+    def homeWithdraw(self, homecoordX, homecoordY, refptX='N', refptY='N', carefulZ=9, dislodgeZ=10, vacBurst=1, vacDur=4000, homeZ=45):
+        if refptX != 'N':
+            robot.moveToSpd(pt=[float(refptX), float(refptY), 0, 0, 10, 5000])       # Allgin to outermost flyhome to prevent tripping
+            robot.dwell(t=1)
+        robot.moveToSpd(pt=[float(homecoordX), float(homecoordY), 0, 0, dislodgeZ, 5000])        # Go to actual home
+        robot.dwell(t=1)
+        robot.flyManipAir(True)
+        trylowerHome = self.lowerCare(z=homeZ, descendZ=carefulZ, retreatZ=carefulZ)      # Move into home - check Z height!
+        if trylowerHome['limit'] == 0:
+            robot.dwell(t=1)
+            for b in range(0,vacBurst):
+                robot.flyManipAir(False)
+                robot.smallPartManipVac(True)
+                robot.dwell(t=rand.choice(range(2,4)))
+                robot.smallPartManipVac(False)
+                robot.dwell(t=rand.choice(range(2,4)))
+            robot.smallPartManipVac(True)
+            robot.dwell(t=vacDur)
+            robot.moveRel(pt=[0, 0, 0, 0, -homeZ])
+            robot.dwell(t=10)
+        else:
+            robot.flyManipAir(False)
+            robot.home()
+        return {'homeX': homecoordX, 'homeY': homecoordY, 'limit': trylowerHome['limit']}
+
+    # Highest order command to deposit a single fly in a well in the housing module
+    def homeDeposit(self, homecoordX, homecoordY, refptX='N', refptY='N', carefulZ=9, vacBurst=1, homeZ=44):
+        if refptX != 'N':
+            robot.moveToSpd(pt=[float(refptX), float(refptY), 0, 0, 10, 5000])       # Allgin to outermost flyhome to prevent tripping
+            robot.dwell(t=1)
+        robot.moveToSpd(pt=[float(homecoordX), float(homecoordY), 0, 0, 10, 5000])        # Go to actual home
+        robot.dwell(t=1)
+        trylowerHome = self.lowerCare(z=homeZ, descendZ=carefulZ, retreatZ=carefulZ)      # Move into home - check Z height!
+        if trylowerHome['limit'] == 0:
+            robot.dwell(t=1)
+            robot.smallPartManipVac(False)
+            for b in range(0,vacBurst):
+                robot.flyManipAir(True)
+                robot.dwell(t=rand.choice(range(5,6)))
+                robot.flyManipAir(False)
+                robot.dwell(t=rand.choice(range(5,6)))
+            robot.dwell(t=50)
+            robot.moveRel(pt=[0, 0, 0, 0, -homeZ])
+            robot.dwell(t=10)
+        else:
+            robot.home()
+        return {'homeX': homecoordX, 'homeY': homecoordY, 'limit': trylowerHome['limit']}
