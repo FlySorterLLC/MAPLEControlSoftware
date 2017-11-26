@@ -52,6 +52,28 @@ https://github.com/morefigs/py-ic-imaging-control - download archive as zip, unp
 
 5. Download this github repository (https://github.com/FlySorterLLC/SantaFeControlSoftware).
 
+6. Copy Examples\ExampleRobot.cfg to the main directory, rename (most scripts assume the name "MAPLE.cfg"), and edit as necessary.
+
+7. Use the GUI to drive the robot around
+
+If necessary, edit MAPLE-GUI.py to refer to the correct config file, then run it. If everything installed correctly, you should
+get a window that shows the camera view and the current position / state of the robot. Press '?' for a list of keyboard commands.
+
+8. Create or edit a workspace file that defines which modules are being used and where they are located
+
+Some example workspaces are included in the Examples folder. To use one of them, move it to the main directory and rename
+to something appropriate. For example, if you created a layout that included the Fly Dispenser and a FlyPlate 96 well plate,
+you might call that PlateLoadWorkspace.py (and again, it should be in the main directory so you script can find it.)
+
+9. Create or edit a script to run to actually do something with the robot!
+
+Again, there are some samples in the Examples folder. They will need to be edited to account for:
+* your configuration file name
+* the workspace they depend on
+* the actual actions they take
+
+10. To use the remote operating mode (Listen Mode):
+
 System Architecture
 -------------------
 

@@ -9,6 +9,8 @@ import robotutil
 import os.path
 import imgprocess
 
+configFile = "MAPLE.cfg"
+
 imgSize = ( 864, 648 )
 crosshairPts = (( 422, 324 ), ( 442, 324 ), ( 432, 314 ), ( 432, 334 ))
 
@@ -21,16 +23,16 @@ def printPosition(robot, img):
     global imgSize, crosshairPts
     currentPosition = robot.getCurrentPosition()
     posStr = "X: {0[0]:.1f} Y:{0[1]:.1f} Z0: {0[2]:.2f} Z1: {0[3]:.2f} Z2: {0[4]:.2f}".format(currentPosition)
-    cv2.rectangle(img, (0, imgSize[1]), (imgSize[0], imgSize[1]-30), (25, 25, 25), -1) 
+    cv2.rectangle(img, (0, imgSize[1]), (imgSize[0], imgSize[1]-30), (25, 25, 25), -1)
     cv2.putText(img, posStr, (25, imgSize[1]-10), cv2.FONT_HERSHEY_PLAIN, 1, (255, 255, 255))
     cv2.putText(img, "? for help", (25, 30), cv2.FONT_HERSHEY_PLAIN, 2, (255, 255,255), 2)
     cv2.line(img, crosshairPts[0], crosshairPts[1], (0,0,0), 3)
     cv2.line(img, crosshairPts[2], crosshairPts[3], (0,0,0), 3)
     cv2.line(img, crosshairPts[0], crosshairPts[1], (255, 255, 255), 1)
     cv2.line(img, crosshairPts[2], crosshairPts[3], (255, 255, 255), 1)
-    
+
 # And pass in the ZAxisBaseAddress here
-robot = robotutil.santaFe("SantaFe.cfg")
+robot = robotutil.santaFe(configFile)
 processor = imgprocess.imageProcess()
 
 if robot.isInitialized == False:
@@ -170,7 +172,7 @@ Modifier keys:
         while os.path.isfile(filename):
             i += 1
             filename = "circlelid" + str(i) + ".png"
-    	
+
         cv2.imwrite(filename, img)
         targets = processor.findOpening(filename)
         pos = robot.getCurrentPosition()
@@ -182,7 +184,7 @@ Modifier keys:
         else:
         	x = pos[0]
         	y = pos[1]
-        
+
     else:
         if (( key != -1 ) and ( key != 27) ):
             print "Unknown keypress:", key

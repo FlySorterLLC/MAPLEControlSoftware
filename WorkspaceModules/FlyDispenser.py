@@ -4,8 +4,8 @@
 
 ## Fly Dispenser class file
 
+import flysorterSerial
 import numpy as np
-import robotutil
 import time
 
 class FlyDispenser:
@@ -19,11 +19,11 @@ class FlyDispenser:
         self.dispenserPoint = dispenserPoint
         ## TODO: add serial class, instance of serial object
         ## and initialize dispenser (send "I")
-        portList = robotutil.availablePorts()
+        portList = flysorterSerial.availablePorts()
         print "Port list:", portList
         for portDesc in portList:
             print "Trying port:", portDesc
-            tempPort = robotutil.serialDevice(portDesc)
+            tempPort = flysorterSerial.serialDevice(portDesc)
             tempPort.sendCmd('V')
             time.sleep(1)
             r = tempPort.getSerOutput()
@@ -45,7 +45,7 @@ class FlyDispenser:
             self.dispenserPort.close()
         return
 
-    # Returns 0 on success, 1 on failure
+    # Returns 0 on success, 1 on timeout, 2 on failure
     def dispenseFly(self):
         # Send command ("F")
         self.dispenserPort.sendSyncCmd('F')
@@ -55,7 +55,23 @@ class FlyDispenser:
             r = self.dispenserPort.getSerOutput()
             time.sleep(0.25)
         s = r.rstrip("\r\n")
-        print "Reply from fly dispense:", s
+        print "Reply from fly dispenser:", s
+        if ( s == "f"):
+            return 0
+        elif ( s == "t"):
+            return 1
+        else:
+            return 2
+
+    def purge(self):
+        # Send command ("P")
+        self.dispenserPort.sendSyncCmd('P')
+        r = ""
+        while r == "":
+            r = self.dispenserPort.getSerOutput()
+            time.sleep(0.25)
+        s = r.rstrip("\r\n")
+        print "Reply from fly dispenser:", s
         if ( s == "f"):
             return 0
         else:
