@@ -3,6 +3,7 @@
 photos/
 log/
 SantaFe.cfg
+MAPLE.cfg
 .DS_store
 curImage*.jpg
 circlelid*.png
