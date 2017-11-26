@@ -14,6 +14,7 @@ import cv2
 import numpy as np
 import time
 import ConfigParser
+import urllib2
 import random as rand
 import pyicic.IC_ImagingControl
 import flysorterSerial
@@ -55,6 +56,7 @@ class santaFe:
                       'Z2OffsetZ': '8',
                       'HFOV': '14.5',
                       'VFOV': '11.25'
+                      'StatusURL': ''
                       }
 
     def __init__(self, robotConfigFile):
@@ -98,7 +100,8 @@ class santaFe:
         self.currentPosition = self.getCurrentPosition()
         self.isInitialized = True
         print "Robot initialized."
-        urllib2.urlopen('http://lab.debivort.org/mu.php?id=santaFe&st=1')
+        if ( StatusURL != ''):
+            urllib2.urlopen(StatusURL)
         return
 
     # Read in the config, and assign values to the appropriate vars
@@ -115,6 +118,7 @@ class santaFe:
         self.Z2Offset = np.array( [ float(self.config.get('DEFAULT', 'Z2OffsetX')), float(self.config.get('DEFAULT', 'Z2OffsetY')),
                                       0.0, 0.0, float(self.config.get('DEFAULT', 'Z2OffsetZ')) ] )
         self.FOV = np.array([ float(self.config.get('DEFAULT', 'HFOV')), float(self.config.get('DEFAULT', 'VFOV')) ])
+        self.StatusURL = self.config.get('DEFAULT', 'StatusURL')
         return
 
     # Resets all solenoid valves, camera, and light circle
@@ -135,7 +139,7 @@ class santaFe:
         return
 
     # Only homes end effectors; Faster than regular home()
-    def homeZ(self):
+    def homeZ2(self):
     	self.smoothie.sendSyncCmd("G28 B0\n")
     	return
 
@@ -159,8 +163,7 @@ class santaFe:
 				xPos  = float(positions[2].split(':')[1])
 				break
 			except:
-				print 'Error: position temporarily lost'
-				self.dwell(10)
+				time.sleep(0.01)
 		xPos  = float(positions[2].split(':')[1])
 		yPos  = float(positions[3].split(':')[1])
 		z0Pos = float(positions[4].split(':')[1])
@@ -182,7 +185,7 @@ class santaFe:
         self.currentPosition[1] = pt[1]
 
     # Coordinate-move command with added mandatory speed (Also updates default speed)
-    def moveXYSpd(self, pt):
+    def moveXYSpd(self, pt, spd):
         if (len(pt) != 3):
             print 'Error: missing speed parameter'
             return
@@ -191,42 +194,79 @@ class santaFe:
             print 'Error: point out of bounds (less than zero, greater than maxExtents)'
             return
 
-        cmd = "G01 X{0[0]} Y{0[1]} F{0[2]}\n".format(pt)
+        # Save current speed
+        self.smoothie.sendSyncCmd("M120\n")
+
+        # Move at commanded speed
+        cmd = "G01 X{0[0]} Y{0[1]} F{1}\n".format(pt, spd)
         self.smoothie.sendSyncCmd(cmd)
+
+        # Reset speed to old value
+        self.smoothie.sendSyncCmd("M121\n")
+
         self.currentPosition[0] = pt[0]
         self.currentPosition[1] = pt[1]
 
-    def moveCirc(self, r, n, endpos, spd, rest, full=False):        # use moveCirc2 whenever possible (smoother movement)
-    ## circular motion around current point; r: radius, n: amount of points (fine-ness),
-    ## endpos: movement end point in multiples of pi, spd; speed, rest: time between movements (fine-ness)
-        self.dwell(t=500) # to get accurate starting point
-        curcircle = np.arange(n*2).reshape((n, 2))
-        XYPos = self.getCurrentPosition()
-        CircStart = XYPos[0:2]
-        tempPos = XYPos[0:2]
-        tempPosSpd = [0,1,2]
-        for x in range(0,n):
-            curcircle[x,:] = math.sin(endpos*math.pi/n*x)*r, math.cos(endpos*math.pi/n*x)*r
-            changeX = (curcircle[x,0] - curcircle[x-1,0])
-            changeY = (curcircle[x,1] - curcircle[x-1,1])
-            if x <= 2:  # Removes large first .sin change in X pos
-                tempPos = tempPos
-            else:
-                tempPos[0] += changeX
-                tempPos[1] += changeY
-            tempPosSpd[0] = tempPos[0]
-            tempPosSpd[1] = tempPos[1]
-            tempPosSpd[2] = spd
-            if x >= n-1:
-                tempPosSpd[2] = self.travelSpeed   # resets speed (carries over in future commands)
-            self.moveXYSpd(pt=tempPosSpd)
-            self.dwell(rest)
-        CircEnd = tempPos
-        if full!= False:
-            self.moveXY(pt=CircStart)
-        self.dwell(t=200)   # ensures plate is still from current movement
-        return CircEnd
+	# Simple Z-axis move command. First 2 inputs (X and Y axis) should be 0.
+    def moveZ(self, pt):
+        if (len(pt) != 5):
+            print 'Error: incorrect coordinate string. Dropping moveZ instruction'
+            return
+        if ( self.isPtInBounds(pt) == False ):
+            print 'Error: point out of bounds (less than zero, greater than maxExtents)'
+            return
+        cmd = "G01 Z{0[2]} A{0[3]} B{0[4]}\n".format(pt)
+        self.smoothie.sendSyncCmd(cmd)
+        self.dwell(1)
+        self.currentPosition = pt
+        return
 
+    # Complex move command. All axes and end effectors can be moved in unison.
+    def moveTo(self, pt):
+        if (len(pt) != 5):
+            print 'Error: incorrect coordinate string:', pt, ' Dropping moveTo instruction'
+            return
+        if ( self.isPtInBounds(pt) == False ):
+            print 'Error: point out of bounds (less than zero, greater than maxExtents)'
+            return
+        cmd = "G01 X{0[0]} Y{0[1]} Z{0[2]} A{0[3]} B{0[4]}\n".format(pt)
+        self.smoothie.sendSyncCmd(cmd)
+        self.dwell(1)
+        self.currentPosition = pt
+        return
+
+    # Complex move command with added speed parameter (Updates default speed)
+    def moveToSpd(self, pt, spd):
+        if (len(pt) != 5):
+            print 'Error: incorrect coordinate string. Dropping moveTo instruction'
+            return
+        if ( self.isPtInBounds(pt) == False ):
+            print 'Error: point out of bounds (less than zero, greater than maxExtents)'
+            return
+
+        # Save current speed
+        self.smoothie.sendSyncCmd("M120\n")
+
+        cmd = "G01 X{0[0]} Y{0[1]} Z{0[2]} A{0[3]} B{0[4]} F{1}\n".format(pt, spd)
+        self.smoothie.sendSyncCmd(cmd)
+
+        self.dwell(1)
+
+        # Reset speed to old value
+        self.smoothie.sendSyncCmd("M121\n")
+
+        self.currentPosition = pt
+        return
+
+    # Moves robot relative to current position, not absolute coordinates.
+    def moveRel(self, pt):
+        self.moveTo( map(sum,zip(self.currentPosition, pt)) )
+
+    # Moves robot to all coordinates in the list (Needs 5 scalars per list entry)
+    def moveXYList(self, ptList):
+        for pt in ptList:
+            self.moveXY(pt)
+        return
 
     # Circular movement followed by lowering of fly manipulating end effector (Hit-detection causes Z-axis retreat)
     def moveCirc2(self, mid, r, n=360, startpos=0, endpos=360, spd=1500, rest=100, z=53, full=True, retreatZ=10, descendZ=9):       #also lowers onto z height
@@ -240,9 +280,9 @@ class santaFe:
         while endpos > 360:
             endpos = endpos - 360
             print 'Endpos corrected to:', endpos
-        deg = np.ones((n+1,3))
+        deg = np.ones((n+1,2))
         for x in range(0,len(deg)):
-            deg[x,:] = (math.sin(2*math.pi/n*x)*r)+mid[0], (math.cos(2*math.pi/n*x)*r)+mid[1], spd
+            deg[x,:] = (math.sin(2*math.pi/n*x)*r)+mid[0], (math.cos(2*math.pi/n*x)*r)+mid[1]
         if endpos - startpos < 0:
             step = -1
             offset = -2
@@ -251,11 +291,7 @@ class santaFe:
             offset = 2
         for i in range(startpos, endpos+1, step):       # loop that performs the circular movement and lowering only on iteration 1
             if careful != 1:
-                if step == 1 and i >= endpos-offset:
-                    deg[:,2] = self.travelSpeed     # resets slow speed to config normal
-                elif step == -1 and i <= endpos-offset:
-                    deg[:,2] = self.travelSpeed
-                self.moveXYSpd(pt=deg[i,:])
+                self.moveXYSpd(pt=deg[i], spd)
                 self.dwell(rest)
                 if i == startpos:
                     self.dwell(10)  # buffer before lowering
@@ -275,8 +311,8 @@ class santaFe:
                 self.moveZ(pt=[XYpos[0],XYpos[1],0,0,retreatZ])
                 break
         if careful != 1 and full == True:
-            self.moveXYSpd(pt=deg[endpos,:])
-            XYpos = deg[endpos,0:2]
+            self.moveXYSpd(pt=deg[endpos], spd)
+            XYpos = deg[endpos]
             self.dwell(1)
         elif careful != 0:
             self.moveZ(pt=[XYpos[0],XYpos[1],0,0,retreatZ])
@@ -314,7 +350,7 @@ class santaFe:
             if trylower['limit'] == 1:
                 print 'Could not find opening - detecting anew...'
                 unsure = 1
-                self.homeZ()
+                self.homeZ2()
         trylower.update({'limitonce':careonce})
         return trylower
 
@@ -338,262 +374,11 @@ class santaFe:
 		posend = self.getCurrentPosition
 		return {'pos.begin': posbegin, 'pos.end': posend, 'limit': careful}
 
-	# Highest order command to withdraw a single fly from a single well in the housing module
-    def homeWithdraw(self, homecoordX, homecoordY, refptX='N', refptY='N', carefulZ=9, dislodgeZ=10, vacBurst=1, vacDur=4000, homeZ=45):
-        if refptX != 'N':
-	        self.moveToSpd(pt=[float(refptX), float(refptY), 0, 0, 10, 5000])       # Allgin to outermost flyhome to prevent tripping
-	        self.dwell(t=1)
-        self.moveToSpd(pt=[float(homecoordX), float(homecoordY), 0, 0, dislodgeZ, 5000])        # Go to actual home
-        self.dwell(t=1)
-        self.flyManipAir(True)
-        trylowerHome = self.lowerCare(z=homeZ, descendZ=carefulZ, retreatZ=carefulZ)      # Move into home - check Z height!
-        if trylowerHome['limit'] == 0:
-            self.dwell(t=1)
-            for b in range(0,vacBurst):
-            	self.flyManipAir(False)
-                self.smallPartManipVac(True)
-                self.dwell(t=rand.choice(range(2,4)))
-                self.smallPartManipVac(False)
-                self.dwell(t=rand.choice(range(2,4)))
-            self.smallPartManipVac(True)
-            self.dwell(t=vacDur)
-            self.moveRel(pt=[0, 0, 0, 0, -homeZ])
-            self.dwell(t=10)
-        else:
-        	self.flyManipAir(False)
-        	self.home()
-        return {'homeX': homecoordX, 'homeY': homecoordY, 'limit': trylowerHome['limit']}
-
-    # Highest order command to deposit a single fly in a well in the housing module
-    def homeDeposit(self, homecoordX, homecoordY, refptX='N', refptY='N', carefulZ=9, vacBurst=1, homeZ=44):
-    	if refptX != 'N':
-	        self.moveToSpd(pt=[float(refptX), float(refptY), 0, 0, 10, 5000])       # Allgin to outermost flyhome to prevent tripping
-	        self.dwell(t=1)
-        self.moveToSpd(pt=[float(homecoordX), float(homecoordY), 0, 0, 10, 5000])        # Go to actual home
-        self.dwell(t=1)
-        trylowerHome = self.lowerCare(z=homeZ, descendZ=carefulZ, retreatZ=carefulZ)      # Move into home - check Z height!
-        if trylowerHome['limit'] == 0:
-            self.dwell(t=1)
-            self.smallPartManipVac(False)
-            for b in range(0,vacBurst):
-                self.flyManipAir(True)
-                self.dwell(t=rand.choice(range(5,6)))
-                self.flyManipAir(False)
-                self.dwell(t=rand.choice(range(5,6)))
-            self.dwell(t=50)
-            self.moveRel(pt=[0, 0, 0, 0, -homeZ])
-            self.dwell(t=10)
-        else:
-        	self.home()
-        return {'homeX': homecoordX, 'homeY': homecoordY, 'limit': trylowerHome['limit']}
-
-    # Highest order command to withdraw a single fly from a single arena in the behavioral module (Different withdraw-strategies accessible using vacstrategy)
-    def arenaWithdraw(self, camcoordX, camcoordY, camcoordZ, arenacoordX, arenacoordY, arenaRad, turnZ, vacPos, vacZ, closePos, vacstrategy=2, vacBurst=1, imgshow=0):
-    	strategy = vacstrategy
-    	missonce = 0
-    	print 'Using strategy', strategy
-        self.moveToSpd(pt=[float(camcoordX), float(camcoordY), 0, camcoordZ, 10, 5000])
-        self.dwell(t=1)
-        degs1 = int(self.findDegs(slowmode=True, precision=4, MAX_SIZE=74, MIN_SIZE=63, startp1=119, startp2=142, startp3=2.7, imgshow=0))
-        self.dwell(t=5)
-        self.moveToSpd(pt=[float(arenacoordX), float(arenacoordY), 0, camcoordZ, 10, 5000])
-        self.dwell(t=10)
-        Mid1 = self.getCurrentPosition()
-        self.dwell(1)
-        endpos1 = vacPos
-        if strategy == 3 or strategy == 6:
-        	self.smallPartManipVac(True)
-        tempCoord = self.tryOpening(mid = [Mid1[0],Mid1[1]], r = float(arenaRad), z = turnZ, startpos=degs1, endpos=endpos1, spd=2000, descendZ=5)
-        miss = tempCoord['limit']
-        missonce = missonce + tempCoord['limitonce']
-        self.dwell(50)
-        if miss == 1:
-            print 'Possible misalignment - resetting...'
-            self.home()
-            return {'miss': miss, 'missonce': missonce}
-        elif miss != 1:
-            self.moveZ([tempCoord['endXY'][0],tempCoord['endXY'][1],0,0,vacZ])
-            if strategy == 1:
-	            self.smallPartManipVac(False)
-	            for b in range(0,vacBurst):
-	                self.smallPartManipVac(True)
-	                self.dwell(t=200)
-	                self.smallPartManipVac(False)
-	                self.dwell(t=10)
-	            self.smallPartManipVac(True)
-	            self.dwell(t=400)
-	            self.smallPartManipVac(False)
-	            self.dwell(t=5)
-	            self.smallPartManipVac(True)
-            elif strategy == 2:
-            	self.smallPartManipVac(False)
-                self.flyManipAir(True)
-                self.dwell(t=5)
-                self.flyManipAir(False)
-                self.dwell(t=5)
-                self.flyManipAir(True)
-                self.dwell(t=5)
-                self.flyManipAir(False)
-                self.dwell(t=5)
-                self.smallPartManipVac(True)
-                self.moveZ([tempCoord['endXY'][0],tempCoord['endXY'][1],0,0,vacZ+1])
-                self.dwell(t=50)
-                self.moveZ([tempCoord['endXY'][0],tempCoord['endXY'][1],0,0,vacZ-1])
-                self.dwell(t=50)
-                self.moveZ([tempCoord['endXY'][0],tempCoord['endXY'][1],0,0,vacZ])
-                self.dwell(t=50)
-            elif strategy == 3:
-            	sweeppos1 = tempCoord['endDeg']
-            	if sweeppos1 < 180:
-            		sweeppos2 = 140
-            	else:
-            		sweeppos2 = 220
-            	checkformiss = self.tryOpening(mid = tempCoord['oldMid'], r = float(arenaRad), z = vacZ, startpos=sweeppos1, endpos=sweeppos2, spd=2000, descendZ=0)
-            	missonce = missonce + checkformiss['limitonce']
-            	self.dwell(50)
-            	checkformiss = self.tryOpening(mid = tempCoord['oldMid'], r = float(arenaRad), z = vacZ, startpos=sweeppos2, endpos=sweeppos1, spd=2000, descendZ=0)
-            	missonce = missonce + checkformiss['limitonce']
-            elif strategy == 4:
-                self.moveZ([tempCoord['endXY'][0],tempCoord['endXY'][1],0,0,vacZ])
-                self.dwell(t=10)
-                self.smallPartManipVac(True)
-                self.dwell(t=20000)
-            elif strategy == 5:
-            	self.moveZ([tempCoord['endXY'][0],tempCoord['endXY'][1],0,0,vacZ])
-            	self.dwell(t=5)
-            	self.flyManipAir(True)
-            	self.dwell(t=500)
-            	self.flyManipAir(False)
-            	self.smallPartManipVac(True)
-            	self.moveZ([tempCoord['endXY'][0],tempCoord['endXY'][1],0,0,vacZ])
-            	self.dwell(t=1000)
-            elif strategy == 6:
-            	sweeppos1 = tempCoord['endDeg']
-            	if sweeppos1 < 180:
-            		sweeppos2 = 140
-            	else:
-            		sweeppos2 = 220
-            	self.flyManipAir(True)
-            	self.dwell(t=5)
-            	self.flyManipAir(False)
-            	self.tryOpening(mid = tempCoord['oldMid'], r = float(arenaRad), z = vacZ, startpos=sweeppos1, endpos=sweeppos2, spd=2000, descendZ=0)
-            	self.flyManipAir(True)
-            	self.dwell(t=5)
-            	self.flyManipAir(False)
-            	self.tryOpening(mid = tempCoord['oldMid'], r = float(arenaRad), z = vacZ, startpos=sweeppos2, endpos=sweeppos1, spd=2000, descendZ=0)
-            	self.dwell(50)
-            endpos2 = closePos
-            tempCoord = self.tryOpening(mid = tempCoord['oldMid'], r = float(arenaRad), z = turnZ, startpos=tempCoord['endDeg'], endpos=endpos2, spd=2000, descendZ=0)
-            missonce = missonce + tempCoord['limitonce']
-            endpos1 = tempCoord['endDeg']
-            self.dwell(10)
-            self.moveZ([tempCoord['endXY'][0],tempCoord['endXY'][1],0,0,10])
-            self.dwell(10)
-            return {'miss':miss, 'arenaX':arenacoordX, 'arenaY':arenacoordY, 'endX': tempCoord['endXY'][0], 'endY':tempCoord['endXY'][1], 'endpos':endpos1, 'missonce':missonce}
-
-    # Highest order command to deposit a single fly in a single arena in the behavioral module
-    def arenaDeposit(self, camcoordX, camcoordY, camcoordZ, arenacoordX, arenacoordY, arenaRad, turnZ, airPos, airZ, closePos, airBurst=1, imgshow=0):
-    	missonce = 0
-    	self.moveToSpd(pt=[float(camcoordX), float(camcoordY), 0, camcoordZ, 10, 5000])
-        self.dwell(t=1)
-        degs1 = int(self.findDegs(slowmode=True, precision=4, MAX_SIZE=74, MIN_SIZE=63, startp1=119, startp2=142, startp3=2.7, imgshow=0))
-        self.dwell(t=5)
-        self.moveToSpd(pt=[float(arenacoordX), float(arenacoordY), 0, camcoordZ, 10, 5000])
-        self.dwell(t=10)
-        Mid1 = self.getCurrentPosition()
-        self.dwell(1)
-        endpos1 = airPos
-        tempCoord = self.tryOpening(mid = [Mid1[0],Mid1[1]], r = float(arenaRad), z = turnZ, startpos=degs1, endpos=endpos1, spd=2000, descendZ=5)
-        miss = tempCoord['limit']
-        missonce = missonce + tempCoord['limitonce']
-        self.dwell(50)
-        if miss == 1:
-            print 'Possible misalignment - full reset...'
-            self.home()
-            return {'miss': miss, 'missonce': missonce}
-        elif miss != 1:
-            self.moveZ([tempCoord['endXY'][0],tempCoord['endXY'][1],0,0,airZ])
-            self.smallPartManipVac(False)
-            self.dwell(t=5)
-            for b in range(0,airBurst):
-                self.flyManipAir(True)
-                self.dwell(t=rand.choice(range(5,6)))
-                self.flyManipAir(False)
-                self.dwell(t=rand.choice(range(5,6)))
-            self.dwell(t=50)
-            endpos2 = closePos
-            tempCoord = self.tryOpening(mid = tempCoord['oldMid'], r = float(arenaRad), z = turnZ, startpos=tempCoord['endDeg'], endpos=endpos2, spd=2000, descendZ=0)
-            missonce = missonce + tempCoord['limitonce']
-            endpos1 = tempCoord['endDeg']
-            self.dwell(50)
-            self.moveZ([tempCoord['endXY'][0],tempCoord['endXY'][1],0,0,10])
-            self.dwell(10)
-            return {'miss':miss, 'arenaX':arenacoordX, 'arenaY':arenacoordY, 'endX': tempCoord['endXY'][0], 'endY':tempCoord['endXY'][1], 'endpos':endpos1, 'missonce':missonce}
-
-    # Moves robot to dispenser location, sends command to dispend fly, tries dispiter times to vacuum fly out
-    def dispenseWithdraw(self, dispX, dispY, dispZ, dispiter=2, onlyifsure=1):
-    	dispsuccess = 0
-    	self.moveToSpd(pt=[float(dispX), float(dispY), 0, 0, 10, 5000])
-    	self.dwell(50)
-    	limit = self.lowerCare(dispZ, descendZ=6, retreatZ=12)
-    	if onlyifsure == 0:
-    		print 'Depositing even if fly may be stuck.'
-    	if limit != 1:
-        	self.smallPartManipVac(True)
-        	for iter in range(dispiter):
-        		dispsuccess = self.dispenseFly()
-        		if dispsuccess == 1:
-        			print 'Fly dispensed.'
-        			self.dwell(2000)
-        			self.moveToSpd(pt=[float(dispX), float(dispY), 0, 0, 10, 5000])
-        			return dispsuccess
-        		elif dispsuccess == 0:
-        			self.smallPartManipVac(False)
-        		elif dispsuccess == 2 and onlyifsure == 1:
-        			self.smallPartManipVac(False)
-        		elif dispsuccess == 2 and onlyifsure == 0:
-        			print 'Quantum fly in tunnel - better safe than sorry protocol commencing.'
-        			self.dwell(3000)
-        			self.moveToSpd(pt=[float(dispX), float(dispY), 0, 0, 10, 5000])
-        elif limit == 1:
-        	print 'Possible misallignment. Check fly dispenser.'
-        	self.home()
-        	return None
-        self.moveToSpd(pt=[float(dispX), float(dispY), 0, 0, 10, 5000])
-    	return dispsuccess
-
-    # Tries to dispense and deposit all newly hatched flies into home plate / saves how many flies were successfully dispensed for longer processing
-    def dispenseHIfHatched(self, homecoordX, homecoordY, dispX, dispY, dispZ, onlyifsure=1, carefulZ=9, vacBurst=1, homeZ=44, dispiter=3, carryovernDispensed=0, maxconsecstuck=4):
-        nDispensed = carryovernDispensed
-        IsHatched = 1
-        consecStuck = 0
-        while IsHatched == 1 or (IsHatched == 2 and onlyifsure == 0) and not consecStuck > maxconsecstuck:
-            IsHatched = self.dispenseWithdraw(dispX=dispX, dispY=dispY, dispZ=dispZ, dispiter=dispiter, onlyifsure=onlyifsure)
-            if IsHatched == 1:
-                self.homeDeposit(homecoordX=homecoordX[nDispensed], homecoordY=homecoordY[nDispensed], refptX='N', refptY='N', carefulZ=carefulZ, vacBurst=vacBurst, homeZ=homeZ)
-                nDispensed = nDispensed+1
-            elif IsHatched == 2 and onlyifsure == 0:
-                self.homeDeposit(homecoordX=homecoordX[nDispensed], homecoordY=homecoordY[nDispensed], refptX='N', refptY='N', carefulZ=carefulZ, vacBurst=vacBurst, homeZ=homeZ)
-                nDispensed = nDispensed +1
-                consecStuck = consecStuck +1
-            else:
-                break
-                print 'No fly dispensed.'
-        print 'Dispensed', nDispensed, 'flies total.'
-        return nDispensed
-
-    # Repeatedly collect successfully dispensed flies (newly hatched) and deposit into consecutive single wells in the housing module
-    # Not accurate loop time-wise but ensures a minimum amount of time tried collecting. All times in ms.
-    def collectHatchedForT(self, homecoordX, homecoordY, dispX, dispY, dispZ, onlyifsure=1, carefulZ=9, vacBurst=1, homeZ=44, dispiter=3, carryovernDispensed=0, collectT=3600, collectInt=60, maxconsecstuck=4):
-        for n in range(collectT/collectInt):
-            carryovernDispensed = self.dispenseHIfHatched(homecoordX=homecoordX, homecoordY=homecoordY, dispX=dispX, dispY=dispY, dispZ=dispZ, onlyifsure=onlyifsure, carefulZ=9, vacBurst=vacBurst, homeZ=homeZ, dispiter=dispiter, carryovernDispensed=carryovernDispensed, maxconsecstuck=maxconsecstuck)
-            time.sleep(collectInt)
-
     # Moves to coordinates and returns whether movement was detected
-    def detectFlyInArena(self, camcoordX, camcoordY, camcoordZ):
-        self.moveToSpd(pt=[float(camcoordX), float(camcoordY), 0, camcoordZ, 10, 5000])
+    def detectMotionAt(self, camcoordX, camcoordY, camcoordZ):
+        self.moveToSpd(pt=[float(camcoordX), float(camcoordY), 0, camcoordZ, 10], 5000)
         self.dwell(10)
-        flyremaining = self.detectFly( minpx=40, maxpx=2000)
+        flyremaining = self.detectMotion( minpx=40, maxpx=2000)
         return flyremaining
 
     # Returns limit pin state (Used in hit detection)
@@ -609,59 +394,6 @@ class santaFe:
         if limit == 1:
             print 'Limit is', limit, '!'
         return limit
-
-	# Simple Z-axis move command. First 2 inputs (X and Y axis) should be 0.
-    def moveZ(self, pt):
-        if (len(pt) != 5):
-            print 'Error: incorrect coordinate string. Dropping moveZ instruction'
-            return
-        if ( self.isPtInBounds(pt) == False ):
-            print 'Error: point out of bounds (less than zero, greater than maxExtents)'
-            return
-        cmd = "G01 Z{0[2]} A{0[3]} B{0[4]}\n".format(pt)
-        self.smoothie.sendSyncCmd(cmd)
-        self.dwell(1)
-        self.currentPosition = pt
-        return
-
-    # Complex move command. All axes and end effectors can be moved in unison.
-    def moveTo(self, pt):
-        if (len(pt) != 5):
-            print 'Error: incorrect coordinate string:', pt, ' Dropping moveTo instruction'
-            return
-        if ( self.isPtInBounds(pt) == False ):
-            print 'Error: point out of bounds (less than zero, greater than maxExtents)'
-            return
-        cmd = "G01 X{0[0]} Y{0[1]} Z{0[2]} A{0[3]} B{0[4]}\n".format(pt)
-        self.smoothie.sendSyncCmd(cmd)
-        self.dwell(1)
-        self.currentPosition = pt
-        return
-
-    # Complex move command with added speed parameter (Updates default speed)
-    def moveToSpd(self, pt):
-        if (len(pt) != 6):
-            print 'Error: incorrect coordinate string. Dropping moveTo instruction'
-            return
-        cord = pt[0:5]
-        if ( self.isPtInBounds(cord) == False ):
-            print 'Error: point out of bounds (less than zero, greater than maxExtents)'
-            return
-        cmd = "G01 X{0[0]} Y{0[1]} Z{0[2]} A{0[3]} B{0[4]} F{0[5]}\n".format(pt)
-        self.smoothie.sendSyncCmd(cmd)
-        self.dwell(1)
-        self.currentPosition = pt
-        return
-
-    # Moves robot relative to current position, not absolute coordinates.
-    def moveRel(self, pt):
-        self.moveTo( map(sum,zip(self.currentPosition, pt)) )
-
-    # Moves robot to all coordinates in the list (Needs 5 scalars per list entry)
-    def moveXYList(self, ptList):
-        for pt in ptList:
-            self.moveXY(pt)
-        return
 
     # Check whether desired coordinate (vector of exactly len 5) is larger than maximum workspace size or smaller than 0
     def isPtInBounds(self, pt):
@@ -734,6 +466,20 @@ class santaFe:
         self.smoothie.sendCmd(cmd)
         return
 
+    # Captures arena picture at location (Images named consecutively if multiple coordinates specified)
+    def SavePicAt(self, Xcoords, Ycoords, IndVect, qualPic=25, Zcam=40, ImgName='errImage.png'):
+        self.light(True)
+        self.cam.start_live()
+        for ImgNum in range(len(Xcoords)):
+            self.moveToSpd(pt=[float(Xcoords[ImgNum]), float(Ycoords[ImgNum]), 0, Zcam, 10, 5000])
+            self.dwell(50)		# Put higher to reduce effect of motion-caused rig trembling on picture
+            self.cam.snap_image()
+            curInd = str(IndVect[ImgNum])
+            self.cam.save_image(curInd + 'errImage.png', 1, jpeq_quality=qualPic)
+            self.dwell(10)
+        self.cam.stop_live()
+        self.light(False)
+
     # Finds immobile fly on white surface (CO2 board)
 	def findFly(self, image):
         # Convert BGR to HSV
@@ -758,7 +504,7 @@ class santaFe:
 		return None
 
 	# Compares 2 images ~800ms apart and returns 1 if minpix < detected difference pixels < maxpix
-    def detectFly(self, minpx=40, maxpx=800,showimg=False):
+    def detectMotion(self, minpx=40, maxpx=800,showimg=False):
 		self.light(True)
 		time.sleep(0.2)
 		self.light(True)
@@ -787,13 +533,13 @@ class santaFe:
 		else:
 			return False
 
-	# Input coordinate vector is returned as logic depending on iterating detectFly() on each index
+	# Input coordinate vector is returned as logic depending on iterating detectMotion() on each index
     def sweep(self, ptsx, ptsy, camz=45, spd=5000):
 		detectvect = range(len(ptsx))
 		indvect = np.array(range(len(ptsx)))
 		for i in range(len(ptsx)):
-			self.moveToSpd(pt=[float(ptsx[i]), float(ptsy[i]), 0, camz, 0, spd])
-			detectvect[i] = self.detectFly()
+			self.moveToSpd(pt=[float(ptsx[i]), float(ptsy[i]), 0, camz, 0], spd)
+			detectvect[i] = self.detectMotion()
 		detectvect = np.array(detectvect, dtype = bool)
 		indvect = np.array(indvect[detectvect])
 		return indvect
@@ -801,13 +547,8 @@ class santaFe:
 	# Finds circle in input image. Used to find opening in arena lid to allow access.
     def findOpening(self, image, slowmode=False, MAX_SIZE=74, MIN_SIZE=63, startp1=119, startp2=142, startp3=2.7, imgshow=0):
         result = []
-        startp1 = startp1
-        startp2 = startp2
-        startp3 = startp3
-        imgshow=imgshow
         detect = 0
         if slowmode == False:
-            image = cv2.imread(image)
             image = cv2.resize(image, (1280, 960))
             output = image.copy()
             gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
@@ -840,8 +581,7 @@ class santaFe:
             oldcircles = np.zeros((1,3), dtype=np.int)
             detect = 0
             while detect == 0:      # decrease sensitivity until at least one circle is found
-                image2 = cv2.imread(image)
-                image3 = cv2.resize(image2, (1280, 960))
+                image3 = cv2.resize(image, (1280, 960))
                 output = image3.copy()
                 gray = cv2.cvtColor(image3, cv2.COLOR_BGR2GRAY)
                 thresh = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2)
@@ -868,14 +608,14 @@ class santaFe:
         return circles
 
     # Returns degrees of a point's coordinates relative to the image midpoint (the opening)
-    def getDegs(self, img, img_width=1280, img_height=960):
+    def getDegs(self, circleList, img_width=1280, img_height=960):
         imgmid = [img_width/2, img_height/2]
-        if len(img[:,1]) >= 2 and not (img[0,0] - img[1,0] >= 150) and not (img[0,1] - img[1,1] >= 150):    # allows 2 close circles and takes mean coords instead (Accuracy - Iteration tradeoff. Works well if less than 10px apart).
-            img[0,0] = (img[0,0] + img[1,0])/2
-            img[0,1] = (img[0,1] + img[1,1])/2
+        if len(circleList[:,1]) >= 2 and not (circleList[0,0] - circleList[1,0] >= 150) and not (circleList[0,1] - circleList[1,1] >= 150):    # allows 2 close circles and takes mean coords instead (Accuracy - Iteration tradeoff. Works well if less than 10px apart).
+            circleList[0,0] = (circleList[0,0] + circleList[1,0])/2
+            circleList[0,1] = (circleList[0,1] + circleList[1,1])/2
             print 'Multiple adjoining openings detected - correcting target coordinates...'
-        dx = img[0,0] - imgmid[0]
-        dy = (img_height - img[0,1]) - imgmid[1]
+        dx = circleList[0,0] - imgmid[0]
+        dy = (img_height - circleList[0,1]) - imgmid[1]
         rads = math.atan2(-dy,dx)
         rads %= 2*math.pi
         degs = math.degrees(rads)
@@ -904,33 +644,21 @@ class santaFe:
                 for i in range(0,2):
                     self.light(True)
                     time.sleep(0.2)
-                    self.cam.start_live()
-                    ICexcept = 0
-                    while ICexcept < 5:
-	                    try:
-	                        self.cam.snap_image()
-	                        ICexcept = 5
-	                    except:
-	                        ICexcept = ICexcept +1
-	                        print 'Error: Could not snap picture - retrying...'
-                    self.cam.save_image(''.join(['curImage.jpg']), 1, jpeq_quality=100)
-                    self.cam.stop_live()
+                    img = self.captureImage()
                     self.light(False)
-                    img = self.findOpening('curImage.jpg', slowmode=slwmd, MAX_SIZE=trymax, MIN_SIZE=trymin, startp1=try1, startp2=try2, startp3=try3, imgshow=imgshow)
-                    tempdeg[i] = self.getDegs(img)
+                    circles = self.findOpening(img, slowmode=slwmd, MAX_SIZE=trymax, MIN_SIZE=trymin, startp1=try1, startp2=try2, startp3=try3, imgshow=imgshow)
+                    tempdeg[i] = self.getDegs(circles)
                 if abs(tempdeg[0] - tempdeg[1]) <= precision:
                     certain = 1
                     return np.mean(tempdeg)
         elif slowmode == False:
             self.light(True)
             time.sleep(0.2)
-            self.cam.start_live()
-            self.cam.snap_image()
-            self.cam.save_image(''.join(['curImage.jpg']), 1, jpeq_quality=100)
-            self.cam.stop_live()
+            time.sleep(0.2)
+            img = self.captureImage()
             self.light(False)
-            img = self.findOpening('curImage.jpg', slowmode=slwmd, MAX_SIZE=trymax, MIN_SIZE=trymin, startp1=try1, startp2=try2, startp3=try3, imgshow=imgshow)
-            tempdeg = self.getDegs(img)
+            circles = self.findOpening(img, slowmode=slwmd, MAX_SIZE=trymax, MIN_SIZE=trymin, startp1=try1, startp2=try2, startp3=try3, imgshow=imgshow)
+            tempdeg = self.getDegs(circles)
             return tempdeg
 
 

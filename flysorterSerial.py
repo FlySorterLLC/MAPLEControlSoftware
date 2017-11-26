@@ -4,7 +4,6 @@
 
 ## Serial port handling class
 
-
 import serial
 import os
 import sys
