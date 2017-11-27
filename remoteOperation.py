@@ -192,4 +192,4 @@ def doInstruct(robot, dispenser, mailfrom, instruction, values, CamX, CamY, CamZ
         server.sendmail(robotEMailAccount, mailfrom, msg.as_string())
         server.quit()
     elif instruction == 'CLCT':
-        commonFlyTasks.collectHatchedForT(robot, homecoordX=HomeX, homecoordY=HomeY, dispenser, onlyifsure=disponlyifsure, carefulZ=9, vacBurst=2, homeZ=44, dispiter=1, carryovernDispensed=0, maxconsecstuck=maxconsecstuck, collectT=values[0], collectInt=values[1])
+        commonFlyTasks.collectHatchedForT(robot, HomeX, HomeY, dispenser, onlyifsure=disponlyifsure, carefulZ=9, vacBurst=2, homeZ=44, dispiter=1, carryovernDispensed=0, maxconsecstuck=maxconsecstuck, collectT=values[0], collectInt=values[1])

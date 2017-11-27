@@ -3,10 +3,12 @@
 ## Copyright (c) 2015, FlySorter, LLC
 
 ## Fly Dispenser class file
-
-import flysorterSerial
+import sys
+import os
 import numpy as np
 import time
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+import flysorterSerial
 
 class FlyDispenser:
 

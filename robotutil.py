@@ -55,7 +55,7 @@ class santaFe:
                       'Z2OffsetY': '0',
                       'Z2OffsetZ': '8',
                       'HFOV': '14.5',
-                      'VFOV': '11.25'
+                      'VFOV': '11.25',
                       'StatusURL': ''
                       }
 
@@ -140,10 +140,10 @@ class santaFe:
 
     # Only homes end effectors; Faster than regular home()
     def homeZ2(self):
-    	self.smoothie.sendSyncCmd("G28 B0\n")
-    	return
+        self.smoothie.sendSyncCmd("G28 B0\n")
+        return
 
-	# Captures current camera image; returns as numpy array
+    # Captures current camera image; returns as numpy array
     def captureImage(self):
         self.cam.start_live()
         self.cam.snap_image()
@@ -154,24 +154,24 @@ class santaFe:
                          shape = (h, w, d))
         return img
 
-   	# Returns current position as array
+    # Returns current position as array
     def getCurrentPosition(self):
         # M114.2 returns string like: "ok MCS: X:0.0000 Y:0.0000 Z:0.0000 A:0.0000 B:0.0000"
-		while True:
-			try:
-				positions = self.smoothie.sendCmdGetReply("M114.2\n").split(' ')
-				xPos  = float(positions[2].split(':')[1])
-				break
-			except:
-				time.sleep(0.01)
-		xPos  = float(positions[2].split(':')[1])
-		yPos  = float(positions[3].split(':')[1])
-		z0Pos = float(positions[4].split(':')[1])
-		z1Pos = float(positions[5].split(':')[1])
-		z2Pos = float(positions[6].split(':')[1])
-		return np.array( [ xPos, yPos, z0Pos, z1Pos, z2Pos ] )
+        while True:
+            try:
+                positions = self.smoothie.sendCmdGetReply("M114.2\n").split(' ')
+                xPos  = float(positions[2].split(':')[1])
+                break
+            except:
+                time.sleep(0.01)
+        xPos  = float(positions[2].split(':')[1])
+        yPos  = float(positions[3].split(':')[1])
+        z0Pos = float(positions[4].split(':')[1])
+        z1Pos = float(positions[5].split(':')[1])
+        z2Pos = float(positions[6].split(':')[1])
+        return np.array( [ xPos, yPos, z0Pos, z1Pos, z2Pos ] )
 
-	# Simple coordinate-move command
+    # Simple coordinate-move command
     def moveXY(self, pt):
         if (len(pt) != 2):
             print 'Error: incorrect coordinate string. Dropping moveXY instruction'
@@ -186,10 +186,6 @@ class santaFe:
 
     # Coordinate-move command with added mandatory speed (Also updates default speed)
     def moveXYSpd(self, pt, spd):
-        if (len(pt) != 3):
-            print 'Error: missing speed parameter'
-            return
-
         if ( self.isPtInBounds((pt[0], pt[1], 0., 0., 0.)) == False ):
             print 'Error: point out of bounds (less than zero, greater than maxExtents)'
             return
@@ -207,7 +203,7 @@ class santaFe:
         self.currentPosition[0] = pt[0]
         self.currentPosition[1] = pt[1]
 
-	# Simple Z-axis move command. First 2 inputs (X and Y axis) should be 0.
+    # Simple Z-axis move command. First 2 inputs (X and Y axis) should be 0.
     def moveZ(self, pt):
         if (len(pt) != 5):
             print 'Error: incorrect coordinate string. Dropping moveZ instruction'
@@ -272,7 +268,7 @@ class santaFe:
     def moveCirc2(self, mid, r, n=360, startpos=0, endpos=360, spd=1500, rest=100, z=53, full=True, retreatZ=10, descendZ=9):       #also lowers onto z height
         careful = 0     # failsafe when already starts lowered
         if spd >= 2001:
-            print 'Adjusting speed to safe level 2000 ...'	# Prevents calibration errors due to post-motion-induced positional changes.
+            print 'Adjusting speed to safe level 2000 ...'  # Prevents calibration errors due to post-motion-induced positional changes.
             spd = 2000
         while startpos > 360:
             startpos = startpos - 360
@@ -291,7 +287,7 @@ class santaFe:
             offset = 2
         for i in range(startpos, endpos+1, step):       # loop that performs the circular movement and lowering only on iteration 1
             if careful != 1:
-                self.moveXYSpd(pt=deg[i], spd)
+                self.moveXYSpd(deg[i], spd)
                 self.dwell(rest)
                 if i == startpos:
                     self.dwell(10)  # buffer before lowering
@@ -311,7 +307,7 @@ class santaFe:
                 self.moveZ(pt=[XYpos[0],XYpos[1],0,0,retreatZ])
                 break
         if careful != 1 and full == True:
-            self.moveXYSpd(pt=deg[endpos], spd)
+            self.moveXYSpd(deg[endpos], spd)
             XYpos = deg[endpos]
             self.dwell(1)
         elif careful != 0:
@@ -355,28 +351,28 @@ class santaFe:
         return trylower
 
     # Step-by-step lowering of fly-manipulating end effector with hit-detection
-    def lowerCare(self, z, descendZ=9, retreatZ=18):		# z: depth of descend; descendZ: number of careful steps to reach depth z; retreatZ: RELATIVE height retreat upon hit
-		if z > 55 or z < 0:
-			print 'Z not in range 0,55 - skipping...'
-			return
-		if descendZ > z:
-			print 'descendZ larger than Z - correcting...'
-			descendZ = z-1
-		posbegin = self.getCurrentPosition()
-		self.moveZ(pt=[posbegin[0],posbegin[1],0,0,z-descendZ])
-		for i in range(1, descendZ+2):
-			self.dwell(1)
-			self.moveRel(pt=[0,0,0,0,1])
-			careful = self.getLimit()
-			if careful == 1:
-				self.moveRel(pt=[0,0,0,0,-retreatZ])
-				break
-		posend = self.getCurrentPosition
-		return {'pos.begin': posbegin, 'pos.end': posend, 'limit': careful}
+    def lowerCare(self, z, descendZ=9, retreatZ=18):        # z: depth of descend; descendZ: number of careful steps to reach depth z; retreatZ: RELATIVE height retreat upon hit
+        if z > 55 or z < 0:
+            print 'Z not in range 0,55 - skipping...'
+            return
+        if descendZ > z:
+            print 'descendZ larger than Z - correcting...'
+            descendZ = z-1
+        posbegin = self.getCurrentPosition()
+        self.moveZ(pt=[posbegin[0],posbegin[1],0,0,z-descendZ])
+        for i in range(1, descendZ+2):
+            self.dwell(1)
+            self.moveRel(pt=[0,0,0,0,1])
+            careful = self.getLimit()
+            if careful == 1:
+                self.moveRel(pt=[0,0,0,0,-retreatZ])
+                break
+        posend = self.getCurrentPosition
+        return {'pos.begin': posbegin, 'pos.end': posend, 'limit': careful}
 
     # Moves to coordinates and returns whether movement was detected
     def detectMotionAt(self, camcoordX, camcoordY, camcoordZ):
-        self.moveToSpd(pt=[float(camcoordX), float(camcoordY), 0, camcoordZ, 10], 5000)
+        self.moveToSpd(pt=[float(camcoordX), float(camcoordY), 0, camcoordZ, 10], spd=5000)
         self.dwell(10)
         flyremaining = self.detectMotion( minpx=40, maxpx=2000)
         return flyremaining
@@ -412,16 +408,16 @@ class santaFe:
 
     # Wait until last robot action (movement) is completed
     def dwell(self, t):
-		while True:
-			try:
-				cmd = "G04 P{0}\n".format(t)
-				self.smoothie.sendSyncCmd(cmd)
-				break
-			except:
-				print 'Error: retrying to send dwell command'
-		return
+        while True:
+            try:
+                cmd = "G04 P{0}\n".format(t)
+                self.smoothie.sendSyncCmd(cmd)
+                break
+            except:
+                print 'Error: retrying to send dwell command'
+        return
 
-	# Controls light-circle LED around camera
+    # Controls light-circle LED around camera
     def light(self, onOff = False):
         if ( onOff == True ):
             cmd = "M48\n"
@@ -440,7 +436,7 @@ class santaFe:
         return
 
     # Controls negative air pressure out of fly manipulating end effector
-    def flyManipVac(self, onOff = False):		# rerouted pins to smallPart vacuum
+    def flyManipVac(self, onOff = False):       # rerouted pins to smallPart vacuum
         if (onOff == True):
             cmd = "M44\n"
         else:
@@ -458,7 +454,7 @@ class santaFe:
         return
 
     # Controls negative air pressure out of part manipulating end effector (Holds part)
-    def smallPartManipVac(self, onOff = False):		# rerouted to fly vacuum
+    def smallPartManipVac(self, onOff = False):     # rerouted to fly vacuum
         if (onOff == True):
             cmd = "M40\n"
         else:
@@ -472,7 +468,7 @@ class santaFe:
         self.cam.start_live()
         for ImgNum in range(len(Xcoords)):
             self.moveToSpd(pt=[float(Xcoords[ImgNum]), float(Ycoords[ImgNum]), 0, Zcam, 10, 5000])
-            self.dwell(50)		# Put higher to reduce effect of motion-caused rig trembling on picture
+            self.dwell(50)      # Put higher to reduce effect of motion-caused rig trembling on picture
             self.cam.snap_image()
             curInd = str(IndVect[ImgNum])
             self.cam.save_image(curInd + 'errImage.png', 1, jpeq_quality=qualPic)
@@ -481,70 +477,70 @@ class santaFe:
         self.light(False)
 
     # Finds immobile fly on white surface (CO2 board)
-	def findFly(self, image):
+    def findFly(self, image):
         # Convert BGR to HSV
-		h, s, v = cv2.split(cv2.cvtColor(image, cv2.COLOR_BGR2HSV))
+        h, s, v = cv2.split(cv2.cvtColor(image, cv2.COLOR_BGR2HSV))
         # Now threshold in the value channel
-		r, mask = cv2.threshold(255-v, 100, 255, cv2.THRESH_BINARY)
+        r, mask = cv2.threshold(255-v, 100, 255, cv2.THRESH_BINARY)
         # Find contours
-		contours, h = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-		for c in contours:
-			mmnts = cv2.moments(c)
-			if ( 20000 < mmnts['m00'] < 200000 ):
+        contours, h = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        for c in contours:
+            mmnts = cv2.moments(c)
+            if ( 20000 < mmnts['m00'] < 200000 ):
                 # Center of contour is m10/m00, m01/m00
-				(pxHeight, pxWidth) = mask.shape
-				imgCoords = np.array([ int(mmnts['m10'] / mmnts['m00'] ), int( mmnts['m01'] / mmnts['m00']) ], dtype=np.int16)
-				cv2.line(image, tuple(imgCoords - np.array([ 20, 0])), tuple(imgCoords + np.array([ 20, 0])), (0,0,0), 5)
-				cv2.line(image, tuple(imgCoords - np.array([ 0, 20])), tuple(imgCoords + np.array([ 0, 20])), (0,0,0), 5)
-				cv2.line(image, tuple(imgCoords - np.array([ 20, 0])), tuple(imgCoords + np.array([ 20, 0])), (255,255,255), 3)
-				cv2.line(image, tuple(imgCoords - np.array([ 0, 20])), tuple(imgCoords + np.array([ 0, 20])), (255,255,255), 3)
-				coords = np.array([ (mmnts['m10'] / mmnts['m00'] - pxWidth/2.)*self.FOV[0]/pxWidth,
+                (pxHeight, pxWidth) = mask.shape
+                imgCoords = np.array([ int(mmnts['m10'] / mmnts['m00'] ), int( mmnts['m01'] / mmnts['m00']) ], dtype=np.int16)
+                cv2.line(image, tuple(imgCoords - np.array([ 20, 0])), tuple(imgCoords + np.array([ 20, 0])), (0,0,0), 5)
+                cv2.line(image, tuple(imgCoords - np.array([ 0, 20])), tuple(imgCoords + np.array([ 0, 20])), (0,0,0), 5)
+                cv2.line(image, tuple(imgCoords - np.array([ 20, 0])), tuple(imgCoords + np.array([ 20, 0])), (255,255,255), 3)
+                cv2.line(image, tuple(imgCoords - np.array([ 0, 20])), tuple(imgCoords + np.array([ 0, 20])), (255,255,255), 3)
+                coords = np.array([ (mmnts['m10'] / mmnts['m00'] - pxWidth/2.)*self.FOV[0]/pxWidth,
                                     (mmnts['m01'] / mmnts['m00'] - pxHeight/2.)*self.FOV[1]/pxHeight ])
-				return coords
-		return None
+                return coords
+        return None
 
-	# Compares 2 images ~800ms apart and returns 1 if minpix < detected difference pixels < maxpix
+    # Compares 2 images ~800ms apart and returns 1 if minpix < detected difference pixels < maxpix
     def detectMotion(self, minpx=40, maxpx=800,showimg=False):
-		self.light(True)
-		time.sleep(0.2)
-		self.light(True)
-		time.sleep(0.2)
+        self.light(True)
+        time.sleep(0.2)
+        self.light(True)
+        time.sleep(0.2)
         image1 = self.captureImage()
-		self.dwell(800)
+        self.dwell(800)
         image2 = self.captureImage()
-		self.light(False)
-		image1 = cv2.resize(image1, (1280, 960))
-		h1, s1, v1 = cv2.split(cv2.cvtColor(image1, cv2.COLOR_BGR2HSV))
-		image2 = cv2.resize(image2, (1280, 960))
-		h2, s2, v2 = cv2.split(cv2.cvtColor(image2, cv2.COLOR_BGR2HSV))
-		image = cv2.subtract(v1,v2)
-		ret,gray = cv2.threshold(image,25,255,0)
-		gray2 = gray.copy()
-		gray2 = cv2.morphologyEx(gray2, cv2.MORPH_OPEN, np.ones((5,5),np.uint8))
-		gray2 = cv2.Canny(gray2,30,100)
-		gray2 = np.nonzero(gray2)
-		gray2 = len(np.nonzero(gray2)[0])
-		print 'detected', gray2, 'moving pixels.'
-		if showimg == True:
-			cv2.imshow('image', gray2)
-			cv2.waitKey(0)
-		if minpx<gray2<maxpx:
-			return True
-		else:
-			return False
+        self.light(False)
+        image1 = cv2.resize(image1, (1280, 960))
+        h1, s1, v1 = cv2.split(cv2.cvtColor(image1, cv2.COLOR_BGR2HSV))
+        image2 = cv2.resize(image2, (1280, 960))
+        h2, s2, v2 = cv2.split(cv2.cvtColor(image2, cv2.COLOR_BGR2HSV))
+        image = cv2.subtract(v1,v2)
+        ret,gray = cv2.threshold(image,25,255,0)
+        gray2 = gray.copy()
+        gray2 = cv2.morphologyEx(gray2, cv2.MORPH_OPEN, np.ones((5,5),np.uint8))
+        gray2 = cv2.Canny(gray2,30,100)
+        gray2 = np.nonzero(gray2)
+        gray2 = len(np.nonzero(gray2)[0])
+        print 'detected', gray2, 'moving pixels.'
+        if showimg == True:
+            cv2.imshow('image', gray2)
+            cv2.waitKey(0)
+        if minpx<gray2<maxpx:
+            return True
+        else:
+            return False
 
-	# Input coordinate vector is returned as logic depending on iterating detectMotion() on each index
+    # Input coordinate vector is returned as logic depending on iterating detectMotion() on each index
     def sweep(self, ptsx, ptsy, camz=45, spd=5000):
-		detectvect = range(len(ptsx))
-		indvect = np.array(range(len(ptsx)))
-		for i in range(len(ptsx)):
-			self.moveToSpd(pt=[float(ptsx[i]), float(ptsy[i]), 0, camz, 0], spd)
-			detectvect[i] = self.detectMotion()
-		detectvect = np.array(detectvect, dtype = bool)
-		indvect = np.array(indvect[detectvect])
-		return indvect
+        detectvect = range(len(ptsx))
+        indvect = np.array(range(len(ptsx)))
+        for i in range(len(ptsx)):
+            self.moveToSpd(pt=[float(ptsx[i]), float(ptsy[i]), 0, camz, 0], spd=spd)
+            detectvect[i] = self.detectMotion()
+        detectvect = np.array(detectvect, dtype = bool)
+        indvect = np.array(indvect[detectvect])
+        return indvect
 
-	# Finds circle in input image. Used to find opening in arena lid to allow access.
+    # Finds circle in input image. Used to find opening in arena lid to allow access.
     def findOpening(self, image, slowmode=False, MAX_SIZE=74, MIN_SIZE=63, startp1=119, startp2=142, startp3=2.7, imgshow=0):
         result = []
         detect = 0
@@ -574,9 +570,9 @@ class santaFe:
                 else:
                     startp2 = startp2 - 3       # decrease sensitivity if no circles were found
             if imgshow == 1:
-            	cv2.imshow("thresh", thresh)
-            	cv2.imshow("output", output)
-            	cv2.waitKey(0)
+                cv2.imshow("thresh", thresh)
+                cv2.imshow("output", output)
+                cv2.waitKey(0)
         elif slowmode == True:      # Improves findOpening on the off-chance that something wrong in the image processing
             oldcircles = np.zeros((1,3), dtype=np.int)
             detect = 0
@@ -630,13 +626,13 @@ class santaFe:
 
     # Combines findOpening and getDegs
     def findDegs(self, slowmode=True, precision=4, MAX_SIZE=74, MIN_SIZE=63, startp1=139, startp2=150, startp3=2.6, imgshow=0):
-    	trymax=MAX_SIZE
-    	trymin=MIN_SIZE
-    	try1 = startp1
-    	try2 = startp2
-    	try3 = startp3
-    	imgshow = imgshow
-    	slwmd = slowmode
+        trymax=MAX_SIZE
+        trymin=MIN_SIZE
+        try1 = startp1
+        try2 = startp2
+        try3 = startp3
+        imgshow = imgshow
+        slwmd = slowmode
         if slowmode == True:
             certain = 0
             while certain != 1:
