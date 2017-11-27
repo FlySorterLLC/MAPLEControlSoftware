@@ -14,16 +14,16 @@ class SocialArena:
     def __init__(self, anchorX, anchorY):
         nrows = 9       # maximum possible rows and columns in arena
         ncols = 9
-        rowstart = anchorX      # Y coord of first point of interest (POI)
-        colstart = anchorY     # X coord of first POI
+        rowstart = anchorY      # Y coord of first point of interest (POI)
+        colstart = anchorX     # X coord of first POI
         camdiffx = 44       # difference in cam and manip coords
         camdiffy = 6.3
         camsharpz = 40      # position at which POIs are sharp
         xdif = 32.1       # x difference between POIs
         ydif = 32       # y difference between POIs
         POIrad = 10.5     # radius of arena POI opening
-        POIz = 49
-        Vacz = 50       # depth from which to vacuum the fly out of the POI
+        self.POIz = 49
+        self.Vacz = 50       # depth from which to vacuum the fly out of the POI
         dispx = 639.5
         dispy = 113
         dispz = 33
@@ -44,7 +44,7 @@ class SocialArena:
         if not any(self.ManipX <= 0) and not any(self.ManipY <= 0) and not any(self.CamX <= 0) and not any(self.CamY <= 0):
             print 'Social arena array successfully initialized.'
         else:
-            print 'Check anchor coordinates. One or more coordinates out of bounds.'
+            print 'Check social arena array anchor coordinates. One or more coordinates out of bounds.'
 
         return
 

@@ -8,6 +8,7 @@ import serial
 import os
 import sys
 import glob
+import time
 
 # Serial communications class that is used for multiple devices.
 #

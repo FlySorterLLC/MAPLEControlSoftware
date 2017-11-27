@@ -1,12 +1,13 @@
-
-
+import random as rand
 
 # Highest order command to withdraw a single fly from a single well in the housing module
-def homeWithdraw(robot, homecoordX, homecoordY, refptX='N', refptY='N', carefulZ=9, dislodgeZ=10, vacBurst=1, vacDur=4000, homeZ=45):
+def homeWithdraw(robot, FlyPlate, wellID, refptX='N', refptY='N', carefulZ=9, dislodgeZ=10, vacBurst=1, vacDur=4000, homeZ=45):
+    homecoordX = FlyPlate.getWell(wellID)[0]
+    homecoordY = FlyPlate.getWell(wellID)[1]
     if refptX != 'N':
-        robot.moveToSpd(pt=[float(refptX), float(refptY), 0, 0, 10, 5000])       # Allgin to outermost flyhome to prevent tripping
+        robot.moveToSpd(pt=[float(refptX), float(refptY), 0, 0, 10], spd=5000)       # Allgin to outermost flyhome to prevent tripping
         robot.dwell(t=1)
-    robot.moveToSpd(pt=[float(homecoordX), float(homecoordY), 0, 0, dislodgeZ, 5000])        # Go to actual home
+    robot.moveToSpd(pt=[float(homecoordX), float(homecoordY), 0, 0, dislodgeZ], spd=5000)        # Go to actual home
     robot.dwell(t=1)
     robot.flyManipAir(True)
     trylowerHome = robot.lowerCare(z=homeZ, descendZ=carefulZ, retreatZ=carefulZ)      # Move into home - check Z height!
@@ -155,18 +156,23 @@ def arenaWithdraw(robot, camcoordX, camcoordY, camcoordZ, arenacoordX, arenacoor
         return {'miss':miss, 'arenaX':arenacoordX, 'arenaY':arenacoordY, 'endX': tempCoord['endXY'][0], 'endY':tempCoord['endXY'][1], 'endpos':endpos1, 'missonce':missonce}
 
 # Highest order command to deposit a single fly in a single arena in the behavioral module
-def arenaDeposit(robot, camcoordX, camcoordY, camcoordZ, arenacoordX, arenacoordY, arenaRad, turnZ, airPos, airZ, closePos, airBurst=1, imgshow=0):
+def arenaDeposit(robot, arena, arenaID, arenaRad, turnZ, airPos, airZ, closePos, airBurst=1, imgshow=0):
+    camcoordX = arena.getCamCoords(arenaID)[0]
+    camcoordY = arena.getCamCoords(arenaID)[1]
+    camcoordZ = 40
+    arenacoordX = arena.getArenaCoords(arenaID)[0]
+    arenacoordY = arena.getArenaCoords(arenaID)[1]
     missonce = 0
-    robot.moveToSpd(pt=[float(camcoordX), float(camcoordY), 0, camcoordZ, 10, 5000])
+    robot.moveToSpd(pt=[float(camcoordX), float(camcoordY), 0, camcoordZ, 10], spd=5000)
     robot.dwell(t=1)
     degs1 = int(robot.findDegs(slowmode=True, precision=4, MAX_SIZE=74, MIN_SIZE=63, startp1=119, startp2=142, startp3=2.7, imgshow=0))
     robot.dwell(t=5)
-    robot.moveToSpd(pt=[float(arenacoordX), float(arenacoordY), 0, camcoordZ, 10, 5000])
+    robot.moveToSpd(pt=[float(arenacoordX), float(arenacoordY), 0, camcoordZ, 10], spd=5000)
     robot.dwell(t=10)
     Mid1 = robot.getCurrentPosition()
     robot.dwell(1)
     endpos1 = airPos
-    tempCoord = robot.tryOpening(mid = [Mid1[0],Mid1[1]], r = float(arenaRad), z = turnZ, startpos=degs1, endpos=endpos1, spd=2000, descendZ=5)
+    tempCoord = robot.tryOpening(mid = [Mid1[0], Mid1[1]], r = float(arenaRad), z = turnZ, startpos=degs1, endpos=endpos1, spd=2000, descendZ=5)
     miss = tempCoord['limit']
     missonce = missonce + tempCoord['limitonce']
     robot.dwell(50)

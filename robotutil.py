@@ -100,8 +100,6 @@ class santaFe:
         self.currentPosition = self.getCurrentPosition()
         self.isInitialized = True
         print "Robot initialized."
-        if ( StatusURL != ''):
-            urllib2.urlopen(StatusURL)
         return
 
     # Read in the config, and assign values to the appropriate vars
@@ -119,6 +117,8 @@ class santaFe:
                                       0.0, 0.0, float(self.config.get('DEFAULT', 'Z2OffsetZ')) ] )
         self.FOV = np.array([ float(self.config.get('DEFAULT', 'HFOV')), float(self.config.get('DEFAULT', 'VFOV')) ])
         self.StatusURL = self.config.get('DEFAULT', 'StatusURL')
+        if ( self.StatusURL != ''):
+            urllib2.urlopen(StatusURL)
         return
 
     # Resets all solenoid valves, camera, and light circle
