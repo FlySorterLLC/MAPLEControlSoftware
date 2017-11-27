@@ -44,7 +44,7 @@ import ExampleSocialWorkspace
 ## Starts main listening mode routine
 timeelapsed = 0
 while ( timeelapsed <= listeningTime ):
-    mail = remoteOperation.listenMode()       # engages listening mode for 1 minute
+    mail = remoteOperation.listenMode(robot.statusURL)       # engages listening mode for 1 minute
     if mail != None:        # performs instruction
         robot.home()
         remoteOperation.doInstruct(robot, ExampleSocialWorkspace.SocialWorkspace['dispenser1'], instruction=mail['instruct'], mailfrom=mail['from'], values=mail['values'], CamX=CamX, CamY=CamY, CamZ=camsharpz, ManipX=ManipX, ManipY=ManipY, turnZ=POIz, vacZ=Vacz, arenaRad=10.5, HomeX=FlyHomeX, HomeY=FlyHomeY, HomeZwd=homezwd, HomeZdp=homezdepos)

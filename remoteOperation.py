@@ -106,11 +106,11 @@ def receiveMailInstruct(delMail=1, subjKeyVect=['INSTRUCT', 'A2H', 'H2A', 'SWP',
         return None
 
 # Puts robot in listen mode (Repeated receiveMailInstruct) and updates listening state in online monitor
-def listenMode(duration=60, listenInterval=10):		# in seconds
+def listenMode(statusURL="", duration=60, listenInterval=10):		# in seconds
     print 'Listening for', duration, 'seconds in', listenInterval, 'second intervals.'
     # Puts monitor to mode 2 for listening
     try:
-        urllib2.urlopen('http://lab.debivort.org/mu.php?id=santaFe&st=2')
+        urllib2.urlopen(statusURL + "&" + "st=2")
     except:
         print 'Could not reach monitor URL'
     for interval in range(duration/listenInterval):
@@ -121,7 +121,7 @@ def listenMode(duration=60, listenInterval=10):		# in seconds
     print 'No instructions received.'
     # Sends 0 to monitor after listening mode is over
     try:
-        urllib2.urlopen('http://lab.debivort.org/mu.php?id=santaFe&st=0')
+        urllib2.urlopen(statusURL + "&" + "st=0")
     except:
         print 'Could not reach monitor URL.'
     return mail

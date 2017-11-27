@@ -118,7 +118,7 @@ class MAPLE:
         self.FOV = np.array([ float(self.config.get('DEFAULT', 'HFOV')), float(self.config.get('DEFAULT', 'VFOV')) ])
         self.StatusURL = self.config.get('DEFAULT', 'StatusURL')
         if ( self.StatusURL != ''):
-            urllib2.urlopen(StatusURL)
+            urllib2.urlopen(StatusURL + "&" + "st=1")
         return
 
     def release(self):
