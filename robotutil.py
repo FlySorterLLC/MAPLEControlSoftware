@@ -42,7 +42,7 @@ class santaFe:
 
     # Configuration defaults
     configDefaults = {'WorkspaceXSize': '1000',
-                      'WorkspaceYSize': '270',
+                      'WorkspaceYSize': '300',
                       'Z1FloorHeight': '40.0',
                       'MaxZ0Depth': '68',
                       'MaxZ1Depth': '50',
@@ -618,11 +618,8 @@ class santaFe:
         degs = (degs-90)* (-1)
         if degs <= 0:       # converts degrees
             degs = 360 + degs
-        if degs <= 180:
-            degs = (degs - 180) * (-1)
-        elif degs >= 180 and degs <= 360:
-            degs = ((degs - 360) * (-1)) + 180
         return degs
+
 
     # Combines findOpening and getDegs
     def findDegs(self, slowmode=True, precision=4, MAX_SIZE=74, MIN_SIZE=63, startp1=139, startp2=150, startp3=2.6, imgshow=0):

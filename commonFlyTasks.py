@@ -172,7 +172,7 @@ def arenaDeposit(robot, arena, arenaID, arenaRad, turnZ, airPos, airZ, closePos,
     Mid1 = robot.getCurrentPosition()
     robot.dwell(1)
     endpos1 = airPos
-    tempCoord = robot.tryOpening(mid = [Mid1[0], Mid1[1]], r = float(arenaRad), z = turnZ, startpos=degs1, endpos=endpos1, spd=2000, descendZ=5)
+    tempCoord = robot.tryOpening(mid = [Mid1[0], Mid1[1]], r = float(arenaRad[arenaID]), z = turnZ, startpos=degs1, endpos=endpos1, spd=2000, descendZ=5)
     miss = tempCoord['limit']
     missonce = missonce + tempCoord['limitonce']
     robot.dwell(50)
@@ -191,10 +191,10 @@ def arenaDeposit(robot, arena, arenaID, arenaRad, turnZ, airPos, airZ, closePos,
             robot.dwell(t=rand.choice(range(5,6)))
         robot.dwell(t=50)
         endpos2 = closePos
-        tempCoord = robot.tryOpening(mid = tempCoord['oldMid'], r = float(arenaRad), z = turnZ, startpos=tempCoord['endDeg'], endpos=endpos2, spd=2000, descendZ=0)
+        tempCoord = robot.tryOpening(mid = tempCoord['oldMid'], r = float(arenaRad[arenaID]), z = turnZ, startpos=tempCoord['endDeg'], endpos=endpos2, spd=2000, descendZ=0)
         missonce = missonce + tempCoord['limitonce']
         endpos1 = tempCoord['endDeg']
-        robot.dwell(50)
+        robot.dwell(200)
         robot.moveZ([tempCoord['endXY'][0],tempCoord['endXY'][1],0,0,10])
         robot.dwell(10)
         return {'miss':miss, 'arenaX':arenacoordX, 'arenaY':arenacoordY, 'endX': tempCoord['endXY'][0], 'endY':tempCoord['endXY'][1], 'endpos':endpos1, 'missonce':missonce}

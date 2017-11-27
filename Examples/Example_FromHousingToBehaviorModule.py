@@ -40,5 +40,5 @@ fp = FlyPlate.FlyPlate(np.array([43.6, 91.1]),np.array([142.3, 27.4]))
 arena = SocialArena.SocialArena(349.5, 269.3)
 ## Starts main transportation routine
 
-cft.homeWithdraw(robot, fp, 1, refptX='N', refptY='N', carefulZ=7, dislodgeZ=25, vacBurst=1, homeZ=45)		# withdraws fly from individual well n
-cft.arenaDeposit(robot, arena, 1, arenaRad=arena.Radii, turnZ=arena.POIz, airPos=300, airZ=arena.Vacz, closePos=180)		# deposits fly into arena n
+#cft.homeWithdraw(robot, fp, 1, refptX='N', refptY='N', carefulZ=7, dislodgeZ=25, vacBurst=1, homeZ=45)		# withdraws fly from individual well n
+cft.arenaDeposit(robot, arena, 1, arenaRad=arena.Radii, turnZ=arena.POIz, airPos=45, airZ=arena.Vacz, closePos=0)		# deposits fly into arena n
