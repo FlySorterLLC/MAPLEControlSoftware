@@ -19,7 +19,7 @@ import random as rand
 import pyicic.IC_ImagingControl
 import flysorterSerial
 
-class santaFe:
+class MAPLE:
     """Class for fly manipulation robot."""
 
     smoothiePort = ""

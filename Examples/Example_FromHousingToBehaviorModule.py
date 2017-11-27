@@ -30,7 +30,7 @@ from WorkspaceModules import SocialArena
 
 #### BEGIN PGM ####
 coordfromcfg = False       # set True to read Arena_Coordinates.cfg file for coordinates
-robot = robotutil.santaFe("SantaFe.cfg")
+robot = robotutil.MAPLE("MAPLE.cfg")
 robot.smoothie.sendCmd("M999")
 robot.flyManipAir(False)
 robot.smallPartManipVac(False)

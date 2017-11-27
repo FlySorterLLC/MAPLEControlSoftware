@@ -12,7 +12,7 @@ import robotutil
 import Workspace2
 
 #### BEGIN PGM ####
-robot = robotutil.santaFe("SantaFe.cfg")
+robot = robotutil.MAPLE("MAPLE.cfg")
 
 if robot.isInitialized == False:
     print "Initialization error."

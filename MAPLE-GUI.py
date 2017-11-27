@@ -7,7 +7,6 @@ import numpy as np
 import time
 import robotutil
 import os.path
-import imgprocess
 
 configFile = "MAPLE.cfg"
 
@@ -32,8 +31,7 @@ def printPosition(robot, img):
     cv2.line(img, crosshairPts[2], crosshairPts[3], (255, 255, 255), 1)
 
 # And pass in the ZAxisBaseAddress here
-robot = robotutil.santaFe(configFile)
-processor = imgprocess.imageProcess()
+robot = robotutil.MAPLE(configFile)
 
 if robot.isInitialized == False:
     print "Initialization error."
@@ -45,7 +43,7 @@ else:
 
 robot.light(True)
 
-cv2.namedWindow("SantaFe")
+cv2.namedWindow("MAPLE")
 
 imageMode = True
 key = -1
@@ -60,7 +58,7 @@ while ( key != 27 ): # ESC to exit
             startTime = time.time()
     # Update the position and show image every time, though
     printPosition(robot, img)
-    cv2.imshow("SantaFe", img)
+    cv2.imshow("MAPLE", img)
     key = cv2.waitKey(5)
     if  ( key == ord('?') ):
         # Print help message
@@ -71,7 +69,7 @@ while ( key != 27 ): # ESC to exit
     p           - print coordinates (in this window)
     SPACE       - update the image
     m           - toggle between capturing images continuously and not
-    c 			- Capture image and save to Repo
+    c 			- Capture image and save
 
 Move +/- 10mm:
     a/d         - X
@@ -166,24 +164,13 @@ Modifier keys:
         robot.moveRel(np.array([0.0, 0.0, 0.0, 0.0, 0.1]))
     # Capture the current image and save it to a file img X.png
     elif( key == ord('c') ):
-        img = cv2.resize(robot.captureImage(), imgSize)
-        i = 0
-        filename = "circlelid" + str(i) + ".png"
+        img = robot.captureImage()
+        i=0
+        filename = "MAPLE-" + str(i) + ".png"
         while os.path.isfile(filename):
             i += 1
-            filename = "circlelid" + str(i) + ".png"
-
+            filename = "MAPLE-" + str(i) + ".png"
         cv2.imwrite(filename, img)
-        targets = processor.findOpening(filename)
-        pos = robot.getCurrentPosition()
-        if targets:
-        	a, b = targets[0]
-        	x = 124.355 - 0.0477 * a
-        	y = 147.598 - 0.0503 * b
-        	#robot.moveTo((x, y, 0, 30, 40))
-        else:
-        	x = pos[0]
-        	y = pos[1]
 
     else:
         if (( key != -1 ) and ( key != 27) ):

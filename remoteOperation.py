@@ -186,7 +186,7 @@ def doInstruct(robot, dispenser, mailfrom, instruction, values, CamX, CamY, CamZ
         except:
             print 'Login went wrong...'
         msg = MIMEText('Format: Use KEYWORD in subject line. Enter arenas and settings as "#,#,#,..." without spaces.\n \nKEYWORDS: \nSWP: Sweeps from arenas [1] through [2] and sends back pictures of arenas in which motion was detected.\nSWPFL: Sends back pictures of arenas [1] through [2].\nA2H: Moves flies in arenas [1] through [2] to their homeplates. Vacuums at radian [3] and closes the lid at radian [4] using strategy [5].\nH2A: Same as A2H but from homeplates to arenas.\nCLCT: Starts virgin collection process for [1] seconds total every [2] seconds.\n \nExample:\nSubject: A2H\nText: 0,18,50,180,2.')
-        msg['Subject'] = 'RE: SantaFe Remote Access Help'
+        msg['Subject'] = 'RE: MAPLE Remote Access Help'
         msg['From'] = robotEMailAccount
         msg['To'] = mailfrom
         server.sendmail(robotEMailAccount, mailfrom, msg.as_string())

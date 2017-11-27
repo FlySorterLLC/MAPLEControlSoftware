@@ -50,7 +50,7 @@ depending on which architecture you've got.
 
 https://github.com/morefigs/py-ic-imaging-control - download archive as zip, unpack, then, in command prompt window, run: python setup.py install
 
-5. Download this github repository (https://github.com/FlySorterLLC/SantaFeControlSoftware).
+5. Download this github repository (https://github.com/FlySorterLLC/MAPLEControlSoftware).
 
 6. Copy Examples\ExampleRobot.cfg to the main directory, rename (most scripts assume the name "MAPLE.cfg"), and edit as necessary.
 

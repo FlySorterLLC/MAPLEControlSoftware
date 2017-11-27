@@ -16,7 +16,7 @@ if Workspace1.Workspace1['dispenser1'].dispenserPort is None:
     exit()
 
 #### BEGIN PGM ####
-robot = robotutil.santaFe("SantaFe.cfg")
+robot = robotutil.MAPLE("MAPLE.cfg")
 
 if robot.isInitialized == False:
     print "Initialization error."
