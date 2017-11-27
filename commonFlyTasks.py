@@ -1,4 +1,5 @@
 import random as rand
+import time
 
 # Highest order command to withdraw a single fly from a single well in the housing module
 def homeWithdraw(robot, FlyPlate, wellID, refptX='N', refptY='N', carefulZ=9, dislodgeZ=10, vacBurst=1, vacDur=4000, homeZ=45):
@@ -29,11 +30,13 @@ def homeWithdraw(robot, FlyPlate, wellID, refptX='N', refptY='N', carefulZ=9, di
     return {'homeX': homecoordX, 'homeY': homecoordY, 'limit': trylowerHome['limit']}
 
 # Highest order command to deposit a single fly in a well in the housing module
-def homeDeposit(robot, homecoordX, homecoordY, refptX='N', refptY='N', carefulZ=9, vacBurst=1, homeZ=44):
+def homeDeposit(robot, FlyPlate, wellID, refptX='N', refptY='N', carefulZ=9, vacBurst=1, homeZ=44):
+    homecoordX = FlyPlate.getWell(wellID)[0]
+    homecoordY = FlyPlate.getWell(wellID)[1]
     if refptX != 'N':
-        robot.moveToSpd(pt=[float(refptX), float(refptY), 0, 0, 10, 5000])       # Allgin to outermost flyhome to prevent tripping
+        robot.moveToSpd(pt=[float(refptX), float(refptY), 0, 0, 10], spd=5000)       # Allgin to outermost flyhome to prevent tripping
         robot.dwell(t=1)
-    robot.moveToSpd(pt=[float(homecoordX), float(homecoordY), 0, 0, 10, 5000])        # Go to actual home
+    robot.moveToSpd(pt=[float(homecoordX), float(homecoordY), 0, 0, 10], spd=5000)        # Go to actual home
     robot.dwell(t=1)
     trylowerHome = robot.lowerCare(z=homeZ, descendZ=carefulZ, retreatZ=carefulZ)      # Move into home - check Z height!
     if trylowerHome['limit'] == 0:
@@ -52,22 +55,27 @@ def homeDeposit(robot, homecoordX, homecoordY, refptX='N', refptY='N', carefulZ=
     return {'homeX': homecoordX, 'homeY': homecoordY, 'limit': trylowerHome['limit']}
 
 # Highest order command to withdraw a single fly from a single arena in the behavioral module (Different withdraw-strategies accessible using vacstrategy)
-def arenaWithdraw(robot, camcoordX, camcoordY, camcoordZ, arenacoordX, arenacoordY, arenaRad, turnZ, vacPos, vacZ, closePos, vacstrategy=2, vacBurst=1, imgshow=0):
+def arenaWithdraw(robot, arena, arenaID, arenaRad, turnZ, vacPos, vacZ, closePos, vacstrategy=2, vacBurst=1, imgshow=0):
+    camcoordX = arena.getCamCoords(arenaID)[0]
+    camcoordY = arena.getCamCoords(arenaID)[1]
+    camcoordZ = 40
+    arenacoordX = arena.getArenaCoords(arenaID)[0]
+    arenacoordY = arena.getArenaCoords(arenaID)[1]
     strategy = vacstrategy
     missonce = 0
     print 'Using strategy', strategy
-    robot.moveToSpd(pt=[float(camcoordX), float(camcoordY), 0, camcoordZ, 10, 5000])
+    robot.moveToSpd(pt=[float(camcoordX), float(camcoordY), 0, camcoordZ, 10], spd=5000)
     robot.dwell(t=1)
     degs1 = int(robot.findDegs(slowmode=True, precision=4, MAX_SIZE=74, MIN_SIZE=63, startp1=119, startp2=142, startp3=2.7, imgshow=0))
     robot.dwell(t=5)
-    robot.moveToSpd(pt=[float(arenacoordX), float(arenacoordY), 0, camcoordZ, 10, 5000])
+    robot.moveToSpd(pt=[float(arenacoordX), float(arenacoordY), 0, camcoordZ, 10], spd=5000)
     robot.dwell(t=10)
     Mid1 = robot.getCurrentPosition()
     robot.dwell(1)
     endpos1 = vacPos
     if strategy == 3 or strategy == 6:
         robot.smallPartManipVac(True)
-    tempCoord = robot.tryOpening(mid = [Mid1[0],Mid1[1]], r = float(arenaRad), z = turnZ, startpos=degs1, endpos=endpos1, spd=2000, descendZ=5)
+    tempCoord = robot.tryOpening(mid = [Mid1[0],Mid1[1]], r = float(arenaRad[arenaID]), z = turnZ, startpos=degs1, endpos=endpos1, spd=2000, descendZ=5)
     miss = tempCoord['limit']
     missonce = missonce + tempCoord['limitonce']
     robot.dwell(50)
@@ -112,10 +120,10 @@ def arenaWithdraw(robot, camcoordX, camcoordY, camcoordZ, arenacoordX, arenacoor
                 sweeppos2 = 140
             else:
                 sweeppos2 = 220
-            checkformiss = robot.tryOpening(mid = tempCoord['oldMid'], r = float(arenaRad), z = vacZ, startpos=sweeppos1, endpos=sweeppos2, spd=2000, descendZ=0)
+            checkformiss = robot.tryOpening(mid = tempCoord['oldMid'], r = float(arenaRad[arenaID]), z = vacZ, startpos=sweeppos1, endpos=sweeppos2, spd=2000, descendZ=0)
             missonce = missonce + checkformiss['limitonce']
             robot.dwell(50)
-            checkformiss = robot.tryOpening(mid = tempCoord['oldMid'], r = float(arenaRad), z = vacZ, startpos=sweeppos2, endpos=sweeppos1, spd=2000, descendZ=0)
+            checkformiss = robot.tryOpening(mid = tempCoord['oldMid'], r = float(arenaRad[arenaID]), z = vacZ, startpos=sweeppos2, endpos=sweeppos1, spd=2000, descendZ=0)
             missonce = missonce + checkformiss['limitonce']
         elif strategy == 4:
             robot.moveZ([tempCoord['endXY'][0],tempCoord['endXY'][1],0,0,vacZ])
@@ -140,14 +148,14 @@ def arenaWithdraw(robot, camcoordX, camcoordY, camcoordZ, arenacoordX, arenacoor
             robot.flyManipAir(True)
             robot.dwell(t=5)
             robot.flyManipAir(False)
-            robot.tryOpening(mid = tempCoord['oldMid'], r = float(arenaRad), z = vacZ, startpos=sweeppos1, endpos=sweeppos2, spd=2000, descendZ=0)
+            robot.tryOpening(mid = tempCoord['oldMid'], r = float(arenaRad[arenaID]), z = vacZ, startpos=sweeppos1, endpos=sweeppos2, spd=2000, descendZ=0)
             robot.flyManipAir(True)
             robot.dwell(t=5)
             robot.flyManipAir(False)
-            robot.tryOpening(mid = tempCoord['oldMid'], r = float(arenaRad), z = vacZ, startpos=sweeppos2, endpos=sweeppos1, spd=2000, descendZ=0)
+            robot.tryOpening(mid = tempCoord['oldMid'], r = float(arenaRad[arenaID]), z = vacZ, startpos=sweeppos2, endpos=sweeppos1, spd=2000, descendZ=0)
             robot.dwell(50)
         endpos2 = closePos
-        tempCoord = robot.tryOpening(mid = tempCoord['oldMid'], r = float(arenaRad), z = turnZ, startpos=tempCoord['endDeg'], endpos=endpos2, spd=2000, descendZ=0)
+        tempCoord = robot.tryOpening(mid = tempCoord['oldMid'], r = float(arenaRad[arenaID]), z = turnZ, startpos=tempCoord['endDeg'], endpos=endpos2, spd=2000, descendZ=0)
         missonce = missonce + tempCoord['limitonce']
         endpos1 = tempCoord['endDeg']
         robot.dwell(10)
@@ -200,10 +208,10 @@ def arenaDeposit(robot, arena, arenaID, arenaRad, turnZ, airPos, airZ, closePos,
         return {'miss':miss, 'arenaX':arenacoordX, 'arenaY':arenacoordY, 'endX': tempCoord['endXY'][0], 'endY':tempCoord['endXY'][1], 'endpos':endpos1, 'missonce':missonce}
 
 # Moves robot to dispenser location, sends command to dispend fly, tries dispiter times to vacuum fly out
-def dispenseWithdraw(robot, dispenser, dispiter=2, onlyifsure=1):
+def dispenseWithdraw(robot, dispenser, dispiter=1, onlyifsure=1):
     dispsuccess = 0
     dispX, dispY, dispZ = dispenser.dispenserPoint
-    robot.moveToSpd(pt=[float(dispX), float(dispY), 0, 0, 10, 5000])
+    robot.moveToSpd(pt=[float(dispX), float(dispY), 0, 0, 10], spd=5000)
     robot.dwell(50)
     limit = robot.lowerCare(dispZ, descendZ=6, retreatZ=12)
     if onlyifsure == 0:
@@ -215,7 +223,7 @@ def dispenseWithdraw(robot, dispenser, dispiter=2, onlyifsure=1):
             if dispsuccess == 1:
                 print 'Fly dispensed.'
                 robot.dwell(2000)
-                robot.moveToSpd(pt=[float(dispX), float(dispY), 0, 0, 10, 5000])
+                robot.moveToSpd(pt=[float(dispX), float(dispY), 0, 0, 10], spd=5000)
                 return dispsuccess
             elif dispsuccess == 0:
                 robot.smallPartManipVac(False)
@@ -224,26 +232,26 @@ def dispenseWithdraw(robot, dispenser, dispiter=2, onlyifsure=1):
             elif dispsuccess == 2 and onlyifsure == 0:
                 print 'Quantum fly in tunnel - better safe than sorry protocol commencing.'
                 robot.dwell(3000)
-                robot.moveToSpd(pt=[float(dispX), float(dispY), 0, 0, 10, 5000])
+                robot.moveToSpd(pt=[float(dispX), float(dispY), 0, 0, 10], spd=5000)
     elif limit == 1:
         print 'Possible misallignment. Check fly dispenser.'
         robot.home()
         return None
-    robot.moveToSpd(pt=[float(dispX), float(dispY), 0, 0, 10, 5000])
+    robot.moveToSpd(pt=[float(dispX), float(dispY), 0, 0, 10], spd=5000)
     return dispsuccess
 
 # Tries to dispense and deposit all newly hatched flies into home plate / saves how many flies were successfully dispensed for longer processing
-def dispenseHIfHatched(robot, homecoordX, homecoordY, dispenser, onlyifsure=1, carefulZ=9, vacBurst=1, homeZ=44, dispiter=3, carryovernDispensed=0, maxconsecstuck=4):
+def dispenseHIfHatched(robot, FlyPlate, wellID, dispenser, onlyifsure=1, carefulZ=9, vacBurst=1, homeZ=44, dispiter=3, carryovernDispensed=0, maxconsecstuck=4):
     nDispensed = carryovernDispensed
     IsHatched = 1
     consecStuck = 0
     while IsHatched == 1 or (IsHatched == 2 and onlyifsure == 0) and not consecStuck > maxconsecstuck:
-        IsHatched = robot.dispenseWithdraw(dispenser, dispiter=dispiter, onlyifsure=onlyifsure)
+        IsHatched = dispenseWithdraw(robot, dispenser, dispiter=dispiter, onlyifsure=onlyifsure)
         if IsHatched == 1:
-            robot.homeDeposit(homecoordX=homecoordX[nDispensed], homecoordY=homecoordY[nDispensed], refptX='N', refptY='N', carefulZ=carefulZ, vacBurst=vacBurst, homeZ=homeZ)
+            homeDeposit(robot, FlyPlate, wellID, refptX='N', refptY='N', carefulZ=carefulZ, vacBurst=vacBurst, homeZ=homeZ)
             nDispensed = nDispensed+1
         elif IsHatched == 2 and onlyifsure == 0:
-            robot.homeDeposit(homecoordX=homecoordX[nDispensed], homecoordY=homecoordY[nDispensed], refptX='N', refptY='N', carefulZ=carefulZ, vacBurst=vacBurst, homeZ=homeZ)
+            homeDeposit(robot, FlyPlate, wellID, refptX='N', refptY='N', carefulZ=carefulZ, vacBurst=vacBurst, homeZ=homeZ)
             nDispensed = nDispensed +1
             consecStuck = consecStuck +1
         else:
@@ -254,7 +262,7 @@ def dispenseHIfHatched(robot, homecoordX, homecoordY, dispenser, onlyifsure=1, c
 
 # Repeatedly collect successfully dispensed flies (newly hatched) and deposit into consecutive single wells in the housing module
 # Not accurate loop time-wise but ensures a minimum amount of time tried collecting. All times in ms.
-def collectHatchedForT(robot, homecoordX, homecoordY, dispenser, onlyifsure=1, carefulZ=9, vacBurst=1, homeZ=44, dispiter=3, carryovernDispensed=0, collectT=3600, collectInt=60, maxconsecstuck=4):
+def collectHatchedForT(robot, FlyPlate, dispenser, onlyifsure=1, carefulZ=9, vacBurst=1, homeZ=44, dispiter=3, carryovernDispensed=0, collectT=3600, collectInt=60, maxconsecstuck=4):
     for n in range(collectT/collectInt):
-        carryovernDispensed = dispenseHIfHatched(robot, homecoordX, homecoordY, dispenser, onlyifsure=onlyifsure, carefulZ=9, vacBurst=vacBurst, homeZ=homeZ, dispiter=dispiter, carryovernDispensed=carryovernDispensed, maxconsecstuck=maxconsecstuck)
+        carryovernDispensed = dispenseHIfHatched(robot, FlyPlate, carryovernDispensed, dispenser, onlyifsure=onlyifsure, carefulZ=9, vacBurst=vacBurst, homeZ=homeZ, dispiter=dispiter, carryovernDispensed=carryovernDispensed, maxconsecstuck=maxconsecstuck)
         time.sleep(collectInt)

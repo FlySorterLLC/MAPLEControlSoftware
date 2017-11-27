@@ -5,14 +5,16 @@
 # Waits for email to arrive signaling action to take
 # Keeps user informed of errors, progress.
 
+import time
 import traceback
+import smtplib
+import email
+import poplib
 from email import parser
 from email.mime.text import MIMEText
 from email.mime.image import MIMEImage
 from email.mime.multipart import MIMEMultipart
-import smtplib
-import email
-import poplib
+import urllib2
 import commonFlyTasks
 
 # Sends email containing images of arenanum arenas
@@ -74,11 +76,11 @@ def notifyUserFail(robot, arenanum, mailfrom, attPic=0, qualPic=25, attImg=1, de
     return
 
 # Reads the most recent emails at associated gmail account and parses instructions (Incorrect instruction format will not cause error-state). Note: formatted for gmail and iOS Mail application.
-def receiveMailInstruct(delMail=1, subjKeyVect=['INSTRUCT', 'A2H', 'H2A', 'SWP', 'SWPFL', 'HELP', 'CLCT'], robotEMailAccount='example@gmail.com', PWrobotEMailAccount='examplePW'):		# Remeber to add all programmed keywords!
+def receiveMailInstruct(robotEMailAccount, PWrobotEMailAccount, delMail=1, subjKeyVect=['INSTRUCT', 'A2H', 'H2A', 'SWP', 'SWPFL', 'HELP', 'CLCT']):		# Remeber to add all programmed keywords!
     try:
         pop_conn = poplib.POP3_SSL('pop.gmail.com')
-        pop_conn.user(robotEMailAccount)
-        pop_conn.pass_(PWrobotEMailAccount)
+        pop_conn.user(str(robotEMailAccount))
+        pop_conn.pass_(str(PWrobotEMailAccount))
         messages = [pop_conn.retr(i) for i in reversed(range(1, len(pop_conn.list()[1]) + 1))]
         messages = ["\n".join(mssg[1]) for mssg in messages]
         messages = [parser.Parser().parsestr(mssg) for mssg in messages]
@@ -106,7 +108,7 @@ def receiveMailInstruct(delMail=1, subjKeyVect=['INSTRUCT', 'A2H', 'H2A', 'SWP',
         return None
 
 # Puts robot in listen mode (Repeated receiveMailInstruct) and updates listening state in online monitor
-def listenMode(statusURL="", duration=60, listenInterval=10):		# in seconds
+def listenMode(robotEMailAccount, PWrobotEMailAccount, statusURL="", duration=60, listenInterval=10):		# in seconds
     print 'Listening for', duration, 'seconds in', listenInterval, 'second intervals.'
     # Puts monitor to mode 2 for listening
     try:
@@ -115,7 +117,7 @@ def listenMode(statusURL="", duration=60, listenInterval=10):		# in seconds
         print 'Could not reach monitor URL'
     for interval in range(duration/listenInterval):
         time.sleep(listenInterval)
-        mail = receiveMailInstruct()
+        mail = receiveMailInstruct(str(robotEMailAccount), str(PWrobotEMailAccount))
         if mail != None:
             return mail
     print 'No instructions received.'
@@ -127,7 +129,15 @@ def listenMode(statusURL="", duration=60, listenInterval=10):		# in seconds
     return mail
 
 # Translates correct email commands into preprogrammed robot routines (Incorrect values will cause error-state requiring manual robot reset)
-def doInstruct(robot, dispenser, mailfrom, instruction, values, CamX, CamY, CamZ, ManipX, ManipY, arenaRad, HomeX, HomeY, HomeZwd, HomeZdp, turnZ, vacZ, dispX=639.5, dispY=113, dispZ=34, disponlyifsure=0, maxconsecstuck=6,robotEMailAccount='example@gmail.com', PWrobotEMailAccount='examplePW'):
+def doInstruct(robot, dispenser, mailfrom, instruction, values, arena, arenaRad, FlyPlate, HomeZwd, HomeZdp, turnZ, vacZ, disponlyifsure=0, maxconsecstuck=6, robotEMailAccount='example@gmail.com', PWrobotEMailAccount='examplePW'):
+    dispX, dispY, dispZ = dispenser.dispenserPoint
+    camcoordX = arena.getCamCoords(arenaID)[0]
+    camcoordY = arena.getCamCoords(arenaID)[1]
+    camcoordZ = 40
+    arenacoordX = arena.getArenaCoords(arenaID)[0]
+    arenacoordY = arena.getArenaCoords(arenaID)[1]
+    homecoordX = FlyPlate.getWell(wellID)[0]
+    homecoordY = FlyPlate.getWell(wellID)[1]
     if instruction == 'SWP':
         flyremainvect = robot.sweep(CamX[values[0]:values[1]], CamY[values[0]:values[1]], camz=CamZ)
         unsurevect = robot.sweep(CamX[flyremainvect], CamY[flyremainvect], camz=CamZ)

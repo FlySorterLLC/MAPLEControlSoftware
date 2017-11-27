@@ -25,8 +25,9 @@ import matplotlib.pyplot as plt
 import ConfigParser
 from datetime import datetime
 import commonFlyTasks as cft
-from WorkspaceModules import FlyPlate
-from WorkspaceModules import SocialArena
+import remoteOperation as remote
+# Import relevant workspace
+import ExampleSocialWorkspace
 
 #### BEGIN PGM ####
 coordfromcfg = False       # set True to read Arena_Coordinates.cfg file for coordinates
@@ -36,9 +37,12 @@ robot.flyManipAir(False)
 robot.smallPartManipVac(False)
 robot.home()
 
-fp = FlyPlate.FlyPlate(np.array([43.6, 91.1]),np.array([142.3, 27.4]))
-arena = SocialArena.SocialArena(349.5, 269.3)
-## Starts main transportation routine
+## Starts main example transportation routines
 
-#cft.homeWithdraw(robot, fp, 1, refptX='N', refptY='N', carefulZ=7, dislodgeZ=25, vacBurst=1, homeZ=45)		# withdraws fly from individual well n
-cft.arenaDeposit(robot, arena, 1, arenaRad=arena.Radii, turnZ=arena.POIz, airPos=45, airZ=arena.Vacz, closePos=0)		# deposits fly into arena n
+cft.homeWithdraw(robot, ExampleSocialWorkspace.SocialWorkspace['plate1'], 1, refptX='N', refptY='N', carefulZ=7, dislodgeZ=25, vacBurst=1, homeZ=45)		# withdraws fly from individual well n
+cft.arenaDeposit(robot, ExampleSocialWorkspace.SocialWorkspace['socialArena'], 1, arenaRad=ExampleSocialWorkspace.SocialWorkspace['socialArena'].Radii, turnZ=ExampleSocialWorkspace.SocialWorkspace['socialArena'].POIz, airPos=50, airZ=ExampleSocialWorkspace.SocialWorkspace['socialArena'].Vacz, closePos=0)
+cft.arenaWithdraw(robot, ExampleSocialWorkspace.SocialWorkspace['socialArena'], 1, arenaRad=ExampleSocialWorkspace.SocialWorkspace['socialArena'].Radii, turnZ=ExampleSocialWorkspace.SocialWorkspace['socialArena'].POIz, vacPos=50, vacZ=ExampleSocialWorkspace.SocialWorkspace['socialArena'].Vacz, closePos=0, vacstrategy=2, vacBurst=1, imgshow=0)
+cft.homeDeposit(robot, ExampleSocialWorkspace.SocialWorkspace['plate1'], 1, refptX='N', refptY='N', carefulZ=9, vacBurst=1, homeZ=44)
+cft.collectHatchedForT(robot, ExampleSocialWorkspace.SocialWorkspace['plate1'], ExampleSocialWorkspace.SocialWorkspace['dispenser1'], onlyifsure=1, carefulZ=9, vacBurst=1, homeZ=44, dispiter=1, carryovernDispensed=0, collectT=20, collectInt=10, maxconsecstuck=4)
+#mail = remote.listenMode(statusURL="", duration=60, listenInterval=2, robotEMailAccount='SantaFailure@gmail.com', PWrobotEMailAccount='H@rvard2017!')
+#remote.doInstruct(robot=robot, instruction=mail['instruct'], mailfrom=mail['from'], values=mail['values'], arena=ExampleSocialWorkspace.SocialWorkspace['socialArena'], FlyPlate=ExampleSocialWorkspace.SocialWorkspace['plate1'], turnZ=ExampleSocialWorkspace.SocialWorkspace['socialArena'].POIz, vacZ=ExampleSocialWorkspace.SocialWorkspace['socialArena'].Vacz, arenaRad=ExampleSocialWorkspace.SocialWorkspace['socialArena'].Radii, dispenser=ExampleSocialWorkspace.SocialWorkspace['dispenser1'], HomeZwd=44, HomeZdp=44)

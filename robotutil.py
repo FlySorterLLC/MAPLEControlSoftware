@@ -403,9 +403,7 @@ class MAPLE:
             except:
                 limitgot = limitgot + 1
         if limit == 1:
-            #self.home()
-            print 'Limit is', limit, '!'
-            #self.smoothie.sendCmd("M999\n")
+            print 'Fly manipulator limit switch hit.'
         return limit
 
     # Check whether desired coordinate (vector of exactly len 5) is larger than maximum workspace size or smaller than 0
@@ -641,7 +639,8 @@ class MAPLE:
         rads %= 2*math.pi
         degs = math.degrees(rads)
         degs = (degs-90)* (-1)
-        if degs <= 0:       # ghettomath but works out
+        if degs <= 0:
+            print degs
             degs = 360 + degs
         return degs
 

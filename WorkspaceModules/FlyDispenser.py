@@ -57,11 +57,11 @@ class FlyDispenser:
             r = self.dispenserPort.getSerOutput()
             time.sleep(0.25)
         s = r.rstrip("\r\n")
-        print "Reply from fly dispenser:", s
+        #print "Reply from fly dispenser:", s
         if ( s == "f"):
-            return 0
-        elif ( s == "t"):
             return 1
+        elif ( s == "t"):
+            return 0
         else:
             return 2
 
