@@ -1,3 +1,8 @@
+##
+## This copyrighted software is distributed under the GPL v2.0 license.
+## See the LICENSE file for more details.
+##
+
 import random as rand
 import time
 

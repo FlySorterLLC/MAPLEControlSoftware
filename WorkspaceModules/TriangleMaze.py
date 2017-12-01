@@ -1,6 +1,7 @@
-#! /usr/bin/env python
-
-## Copyright (c) 2015, FlySorter, LLC
+##
+## This copyrighted software is distributed under the GPL v2.0 license.
+## See the LICENSE file for more details.
+##
 
 ## Triangular maze array (original style) class file
 
@@ -12,7 +13,7 @@ class TriangleMaze:
     Z0WorkingThickness = 7.5
     Z1WorkingThickness = 7.5
     Z2WorkingThickness = 4.5
-    
+
     # These are a little questionable
     horizontalMazeSpacing = 36.374 #mm
     verticalMazeSpacing = 35.78 #mm
@@ -32,7 +33,7 @@ class TriangleMaze:
         self.invertedOffset = np.array([self.horizontalMazeSpacing/2., self.verticalShift])
 
         # Check the distance between the two maze coords for sanity
-        # Should 
+        # Should
         l = np.linalg.norm(maze64-maze1)
         nominalVect = (self.mazeCols-1)*self.majorBasis + (self.mazeRows-1)*self.minorBasis
         nominalDist = np.linalg.norm( nominalVect )
@@ -53,7 +54,7 @@ class TriangleMaze:
         self.majorBasis = rotMat.dot(self.majorBasis)
         self.minorBasis = rotMat.dot(self.minorBasis)
         self.invertedOffset = rotMat.dot(self.invertedOffset)
-        
+
         return
 
     # Note that this index (i) is one based and matches the numbering on the mazes.

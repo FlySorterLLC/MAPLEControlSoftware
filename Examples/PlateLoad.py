@@ -1,6 +1,7 @@
-#! /usr/bin/env python
-
-## Copyright (c) 2016, FlySorter, LLC
+##
+## This copyrighted software is distributed under the GPL v2.0 license.
+## See the LICENSE file for more details.
+##
 
 ## Program to dispense flies & deposit into a FlyPlate
 

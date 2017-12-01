@@ -1,6 +1,7 @@
-## Copyright (c) 2015, FlySorter LLC
 ##
-## This software is licensed under the GPL v2.0
+## This copyrighted software is distributed under the GPL v2.0 license.
+## See the LICENSE file for more details.
+##
 #
 #  File: SocialArena.py
 #  Description: Contains and functions used to access social arena array.

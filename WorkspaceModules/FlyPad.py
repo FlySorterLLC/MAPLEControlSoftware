@@ -1,6 +1,7 @@
-#! /usr/bin/env python
-
-## Copyright (c) 2015, FlySorter, LLC
+##
+## This copyrighted software is distributed under the GPL v2.0 license.
+## See the LICENSE file for more details.
+##
 
 ## Fly pad class file
 
@@ -17,19 +18,19 @@ class FlyPad:
     # upperLeft is coordinate of upper left corner,
     # lowerRight is coord of lower right.
     # This code assumes the pad is aligned with the
-    # major axis of 
+    # major axis of
     def __init__(self, upperLeft, lowerRight):
         if ( ( upperLeft[0] > lowerRight[0] ) or
              ( upperLeft[1] < lowerRight[1] ) ):
             print "Fly pad error: coordinates not properly oriented."
             return
-        
+
         self.upperLeft = upperLeft
         self.lowerRight = lowerRight
 
         self.width = self.lowerRight[0]-self.upperLeft[0]
         self.height = self.upperLeft[1]-self.lowerRight[1]
-                
+
         return
 
     def calculateRegionCoords(self, FOV):
@@ -57,4 +58,3 @@ class FlyPad:
 
     def findNextFly(self, robot):
         pass
-    

@@ -1,6 +1,7 @@
-#! /usr/bin/env python
-
-## Copyright (c) 2015, FlySorter, LLC
+##
+## This copyrighted software is distributed under the GPL v2.0 license.
+## See the LICENSE file for more details.
+##
 
 ## FlyPlate (96 well plate) class file
 
@@ -10,7 +11,7 @@ class FlyPlate:
 
     MaxThickness = 19.
     Z2WorkingThickness = 12.
-    
+
     wellSpacing = 9.
 
     # startWellPoint is well A1 (upper left), endWellPoint is well H12 (lower right)
@@ -41,7 +42,7 @@ class FlyPlate:
         sinAngle = -np.cross( (endWellPoint-startWellPoint), nominalVect ) / ( l * nominalDist )
         #print "cos(t) =", cosAngle, "and sin(t) =", sinAngle
 
-        # Construct the rotation matrix                               
+        # Construct the rotation matrix
         rotMat = np.array( [ [cosAngle, -sinAngle], [ sinAngle, cosAngle] ])
 
         # Now apply the rotation matrix to the basis vectors

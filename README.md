@@ -1,7 +1,7 @@
 # MAPLE v2 Control Software
 
 This repository contains the software to control the FlySorter fly manipulation platform,
-specifically the hardware version MAPLE version 2 ().
+specifically the hardware version MAPLE version 2.
 
 The software is distributed under the GPL v2.0 license. See the LICENSE file for more details.
 
@@ -74,6 +74,7 @@ Again, there are some samples in the Examples folder. They will need to be edite
 
 10. To use the remote operating mode (Listen Mode):
 
+
 System Architecture
 -------------------
 
@@ -104,3 +105,8 @@ to the operating system. It uses G-Code to communicate with the PC (http://repra
 
 The Python code in this repository translates API calls into the appropriate G-code commands and sends them to
 the Smoothie (and waits for replies, as appropriate).
+
+Contributors
+-------------------
+
+This code was authored by: Dave Zucker, Tom Alisch, Yong-Li Dich, William Long, and Ben De Bivort

@@ -1,6 +1,7 @@
-#! /usr/bin/env python
-
-## Copyright (c) 2015, FlySorter, LLC
+##
+## This copyrighted software is distributed under the GPL v2.0 license.
+## See the LICENSE file for more details.
+##
 
 ## Workspace configuration file
 
@@ -16,4 +17,3 @@ Workspace2 = { 'baseThickness': 1.58,
                                                        np.array([313., 25.]) ) }
 #               'pad1': WorkspaceModules.FlyPad.FlyPad( np.array([283., 126.]),
 #                                                       np.array([363., 25.]) ) }
-               

@@ -1,5 +1,7 @@
-#! /usr/bin/env python
-
+##
+## This copyrighted software is distributed under the GPL v2.0 license.
+## See the LICENSE file for more details.
+##
 # Remote listening script for MAPLE robot
 #
 # Waits for email to arrive signaling action to take
