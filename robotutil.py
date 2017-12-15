@@ -73,7 +73,6 @@ class MAPLE:
         portList = flysorterSerial.availablePorts()
         print "Port list:", portList
         for portDesc in portList:
-            # print "Trying port", portDesc
             tempPort = flysorterSerial.serialDevice(portDesc, 115200)
             if tempPort.sendCmdGetReply("version\n").startswith("Build version"):
                 print "Port:", portDesc, "is smoothie."
@@ -286,38 +285,26 @@ class MAPLE:
         else:
             step = 1
             offset = 2
-        #print 'made it to loop with step:', step, 'and offset:', offset
         for i in range(startpos, endpos+1, step):       # loop that performs the circular movement and lowering only on iteration 1
             if careful != 1:
                 self.moveXYSpd(deg[i], spd)
                 self.dwell(rest)
                 if i == startpos:
                     self.dwell(10)  # just a tiny buffer before lowering
-                    #print 'waiting to lower...'
                 XYpos = self.getCurrentPosition()
-                #print i, XYpos, deg[i,0], deg[i,1]
                 if i == startpos and (XYpos[0] - deg[startpos,0] <= 1) and (XYpos[1] - deg[startpos,1] <= 1):   # only lower on first iteration and if degrees match
-                    #print 'lowering...'
                     self.dwell(10)
                     self.moveZ(pt=[XYpos[0],XYpos[1],0,0,z-descendZ]) # lowers to 9 units above detected opening
                     self.dwell(1) # give time before the loop
-                    #print self.getCurrentPosition()
-                    #self.moveTo(pt=[XYpos[0],XYpos[1],0,0,z-9])        # one of these gets skipped for some reason..
-                    #self.dwell(1) # give time before the loop
-                    #print self.getCurrentPosition()
                     for j in range(1, descendZ+2):     #carefully lower into opening and start at 0 just to also check current limit
                         self.dwell(1)
                         self.moveZ(pt=[XYpos[0],XYpos[1],0,0,(z-descendZ)+j])
-                        #print 'lowering step:', j, 'ends at', self.getCurrentPosition()
                         careful = self.getLimit()
                         if careful == 1:
                             self.moveZ(pt=[XYpos[0],XYpos[1],0,0,retreatZ])
-                            #print 'should be retreating...'
-                            #print 'firstbreak'
                             break
             elif careful != 0:
                 self.moveZ(pt=[XYpos[0],XYpos[1],0,0,retreatZ])
-                #print 'secbreak'
                 break      #super overkill but more secure
         if careful != 1 and full == True:
             self.moveXYSpd(deg[endpos], spd)
@@ -337,25 +324,20 @@ class MAPLE:
         unsure=0
         radi = r
         careonce = 0
-        #print 'first try...'
         trylower = self.moveCirc2(mid=trymid, r=radi, n=360, startpos=trystart, endpos=tryend, spd=tryspd, rest=5, z=tryz, full=True, retreatZ=42, descendZ=descendZ)
         startposFirst = startpos
-        #print 'startposFirst is:', startposFirst
         while trylower['limit'] == 1 and unsure != 1:
             for cw in xrange(2,10,2):
                 if trylower['limit'] == 1:
                     careonce = 1
-                    #print 'trying 2 degrees further clockwise...'
                     startpos = startpos + cw
                     trylower = self.moveCirc2(mid=trymid, r=radi, n=360, startpos=startpos, endpos=tryend, spd=tryspd, rest=5, z=tryz, full=True, retreatZ=42, descendZ=descendZ)
                 else:
                     break
             startpos = startposFirst
-            #print 'now trying counterclockwise at', startpos, 'which should match', startposFirst
             for ccw in xrange(2,10,2):       # can skip 0 degree offset bc clockwise covered it
                 if trylower['limit'] == 1:
                     careonce = 1
-                    #print 'trying 2 degrees further counter-clockwise...'
                     startpos = startpos - ccw
                     trylower = self.moveCirc2(mid, r=radi, n=360, startpos=startpos, endpos=tryend, spd=tryspd, rest=5, z=tryz, full=True, retreatZ=42, descendZ=descendZ)
                 else:
@@ -536,7 +518,6 @@ class MAPLE:
         gray2 = cv2.Canny(gray2,30,100)
         gray2 = np.nonzero(gray2)
         gray2 = len(np.nonzero(gray2)[0])
-        print 'detected', gray2, 'moving pixels.'
         if showimg == True:
             cv2.imshow('image', gray2)
             cv2.waitKey(0)
@@ -562,21 +543,15 @@ class MAPLE:
         detect = 0
         if slowmode == False:
             image = cv2.resize(image, (1280, 960))
-            #cv2.imshow("resized", image)
-            #cv2.waitKey()
             output = image.copy()
             gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-            #cv2.imshow("gray", gray)
-            #cv2.waitKey(0)
             thresh = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2)
             while detect == 0:      # decrease sensitivity until at least one circle is found
-                #print 'sensitivity lowered to:', startp2
                 circles = cv2.HoughCircles(thresh,cv2.cv.CV_HOUGH_GRADIENT,startp3,50, param1=startp1,param2=startp2,minRadius=MIN_SIZE,maxRadius=MAX_SIZE)
                  ## change param 1 and 2 for more-less circles
                 if  circles is not None:
                     # convert the (x, y) coordinates and radius of the circles to integers
                     circles = np.round(circles[0, :]).astype("int")
-                    #print 'detected', len(circles), 'circles'
                     # loop over the (x, y) coordinates and radius of the circles
                     for i in range(0,len(circles)):
                         # draw the circle in the output image, then draw a rectangle
@@ -591,7 +566,6 @@ class MAPLE:
                         detect = 1      # to get out if too many circles get found repeatedly -- unlikely to result in wrong angle as it needs validation
                 else:
                     startp2 = startp2 - 3       # get less sensitive if no circles were found
-                    #print 'reducing sensitivity to...', startp2
             if imgshow == 1:
                 cv2.imshow("thresh", thresh)
                 cv2.imshow("output", output)
@@ -607,10 +581,6 @@ class MAPLE:
                 circles = cv2.HoughCircles(thresh,cv2.cv.CV_HOUGH_GRADIENT,startp3,50, param1=startp1,param2=startp2,minRadius=MIN_SIZE,maxRadius=MAX_SIZE)
                 if circles is not None:
                     circles = np.round(circles[0, :]).astype("int")
-                    if len(circles) == 1:
-                        print 'Detected ',len(circles), 'circle.'
-                    else:
-                        print 'Detected ',len(circles), 'circles.'
                     detect = 1
                     # show the output image
                     for i in range(0,len(circles)):
@@ -624,7 +594,6 @@ class MAPLE:
                             cv2.waitKey(0)
                 else:
                     startp2 = startp2 - 3       # get less sensitive if no circles were found
-                    #print 'reducing sensitivity...'
         return circles
 
     # Returns degrees of a point's coordinates relative to the image midpoint (the opening)
@@ -641,7 +610,6 @@ class MAPLE:
         degs = math.degrees(rads)
         degs = (degs-90)* (-1)
         if degs <= 0:
-            print degs
             degs = 360 + degs
         return degs
 
@@ -659,7 +627,6 @@ class MAPLE:
             certain = 0
             while certain != 1:
                 tempdeg = np.arange(2)
-                #print 'at start tempdeg is', tempdeg
                 for i in range(0,2):
                     self.light(True)
                     time.sleep(0.2)
@@ -669,7 +636,6 @@ class MAPLE:
                     tempdeg[i] = self.getDegs(circles)
                 if abs(tempdeg[0] - tempdeg[1]) <= precision:
                     certain = 1
-                    #print 'final degree decision is', np.mean(tempdeg)
                     return np.mean(tempdeg)
         elif slowmode == False:
             self.light(True)
