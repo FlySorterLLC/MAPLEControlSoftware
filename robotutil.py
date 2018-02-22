@@ -141,6 +141,10 @@ class MAPLE:
         self.smoothie.sendSyncCmd("G28 B0\n")
         return
 
+    def homeZ0(self):
+        self.smoothie.sendSyncCmd("G28 Z0\n")
+        return
+
     # Captures current camera image; returns as numpy array
     def captureImage(self):
         self.cam.start_live()
@@ -358,7 +362,7 @@ class MAPLE:
             print 'descendZ larger than Z - correcting...'
             descendZ = z-1
         posbegin = self.getCurrentPosition()
-        self.moveZ(pt=[posbegin[0],posbegin[1],0,0,z-descendZ])
+        self.moveZ(pt=[posbegin[0],posbegin[1],10,0,z-descendZ])
         for i in range(1, descendZ+2):
             self.dwell(1)
             self.moveRel(pt=[0,0,0,0,1])
@@ -659,7 +663,7 @@ def cameraInit():
     cam.open()
     cam.gain.value = 10
     cam.exposure.auto = False
-    cam.exposure.value = -7
+    cam.exposure.value = -10
     cam.set_video_format('BY8 (2592x1944)')
     cam.set_frame_rate(4.00)
     cam.prepare_live()
