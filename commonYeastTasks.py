@@ -8,8 +8,9 @@ import time
 import numpy as np
 import cv2
 
-# Highest order commands for yeast colony manipulation
+## Highest order commands for yeast colony manipulation
 
+# Loads applicator from applicator module
 def applicatorEquip(robot, YeastApplicatorPlate, ID, applicatorZ=22.5, vacDur=500):
     coordX = YeastApplicatorPlate.getApplicatorCoords(ID)[0]
     coordY = YeastApplicatorPlate.getApplicatorCoords(ID)[1]
@@ -60,6 +61,7 @@ def applicatorEquip(robot, YeastApplicatorPlate, ID, applicatorZ=22.5, vacDur=50
     robot.homeZ2()        # retrieve applicator
     robot.moveToSpd(pt=[415, 247, 0, 0, 0, 0], spd=3000)       # move safely into neutral position
 
+# Discards applicator into applicator discard module
 def applicatorDiscard(robot, discardX= 438, discardY = 116, discardZ=50, airBurst=2, airDur=1000):
     robot.moveToSpd(pt=[float(discardX), float(discardY), 0, 0, 0], spd=5000)
     robot.dwell(t=1)
@@ -72,6 +74,7 @@ def applicatorDiscard(robot, discardX= 438, discardY = 116, discardZ=50, airBurs
         robot.dwell(t=airDur/10)
     robot.moveRel(pt=[0, 0, 0, 0, -discardZ])        # 
 
+# Tests whether applicator is loaded by engaging limit switch
 def applicatorTest(robot, testX=415, testY=255, testZ=13):
     robot.moveToSpd(pt=[float(testX), float(testY), 0, 0, 0], spd=5000)
     robot.dwell(t=1)
@@ -83,6 +86,7 @@ def applicatorTest(robot, testX=415, testY=255, testZ=13):
         print 'Applicator is not equipped.'
     return test['limit']
 
+# Engages object manipulator to withdraw lid from arena ID
 def lidWithdraw(robot, YeastArena, ID, adjZ=0):
     coordX = YeastArena.getSPCoords(ID)[0]
     coordY = YeastArena.getSPCoords(ID)[1]
@@ -95,6 +99,7 @@ def lidWithdraw(robot, YeastArena, ID, adjZ=0):
     robot.dwell(300)
     robot.moveRel(pt=[0, 0, -coordZ+10, 0, 0])      # so lid does not fall off
 
+# Engages object manipulator to withdraw lid on arena ID
 def lidPlace(robot, YeastArena, ID):
     coordX = YeastArena.getSPCoords(ID)[0]
     coordY = YeastArena.getSPCoords(ID)[1]
@@ -110,6 +115,7 @@ def lidPlace(robot, YeastArena, ID):
     robot.dwell(1)
     robot.smallPartManipAir(False)
 
+# Engages loaded applicator to test for successful lid withdrawal/placement. Care to use sterile applicator
 def lidTest(robot, YeastArena, ID):
     coordX = YeastArena.getArenaCoords(ID)[0]
     coordY = YeastArena.getArenaCoords(ID)[1]
@@ -124,11 +130,13 @@ def lidTest(robot, YeastArena, ID):
         print 'Lid not detected.'
     return test['limit']
 
+# Check object manipulator flow sensor (experimental)
 def lidCheck(robot):
     vacSens = robot.smoothie.sendCmdGetReply("M109\n").split(' ')
     print vacSens
     return vacSens
 
+# Engages loaded applicator to descend and touch colony at coordinates
 def colonyProbe(robot, YeastArena, ID, colonyX, colonyY, probeT=100, skipAnchor=False, skipLidProbe=True, agarZ=0):
     arenaX = YeastArena.getArenaCoords(ID)[0]
     arenaY = YeastArena.getArenaCoords(ID)[1]
@@ -161,6 +169,7 @@ def colonyProbe(robot, YeastArena, ID, colonyX, colonyY, probeT=100, skipAnchor=
         robot.moveRel(pt=[0, 0, 0, 0, -10])
     time.sleep(0.1)
 
+# Coordinate space resembling 'MAPLE'
 def getLogoCoord(ID):
         # M
     Logo = [    [310, 156], [310,152],[310, 148], [310,146],[310, 142], [310,138],
@@ -186,6 +195,7 @@ def getLogoCoord(ID):
         [253,138],[250,138],[247,138]    ]
     return Logo[ID]
 
+# Coordinate space resembling 'MAPLE' in higher resolution
 def getLogoCoordFull(ID):
         # M
     Logo = [    [310, 156],[310, 154], [310,152],[310, 150],[310, 148], [310,146], [310,144],[310, 142],[310, 140], [310,138],
@@ -211,6 +221,7 @@ def getLogoCoordFull(ID):
         [254,138], [252,138],[250,138],[248,138]    ]
     return Logo[ID]
 
+# Engage camera to monitor arena ID
 def imgArena(robot, YeastArena, ID, light=0):
     coordX = YeastArena.getCamCoords(ID)[0]
     coordY = YeastArena.getCamCoords(ID)[1]
@@ -225,6 +236,7 @@ def imgArena(robot, YeastArena, ID, light=0):
         robot.light(False)
     return img
 
+# Find (first detected) colony in arena ID using machine vision
 def detectColony(robot, YeastArena, ID):
     img_width=1280
     img_height=960
@@ -237,14 +249,6 @@ def detectColony(robot, YeastArena, ID):
     time.sleep(0.2)
     img = robot.captureImage()
     robot.light(False)
-    # img = cv2.resize(img, (1280, 960))
-    # img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    # thresh = cv2.adaptiveThreshold(img, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2)
-    # circles = cv2.HoughCircles(thresh,cv2.cv.CV_HOUGH_GRADIENT,2.6,50, param1=139,param2=170,minRadius=8,maxRadius=30)
-    #for i in range(0,len(circles)):
-        #cv2.circle(thresh, (circles[i,0], circles[i,1]), circles[i,2], (0, 255, 0), 4)
-    #cv2.imshow("output", thresh)
-    #cv2.waitKey(0)
     circles = robot.findOpening(img, slowmode=False, MAX_SIZE=30, MIN_SIZE=8, startp1=139, startp2=170, startp3=2.6, imgshow=0)
     x = circles[0][0]
     y = circles[0][1]
@@ -253,6 +257,7 @@ def detectColony(robot, YeastArena, ID):
     yrel = imgmid[1] - y
     return xrel, yrel
 
+# Streak out single colony in predetermined motion at arena ID
 def streakColony(robot, YeastArena, ID, agarZ=0):
     arenaX = YeastArena.getArenaCoords(ID)[0]
     arenaY = YeastArena.getArenaCoords(ID)[1]
@@ -289,7 +294,6 @@ def streakColony(robot, YeastArena, ID, agarZ=0):
     time.sleep(0.2)
     robot.moveRel([-38, 0, 0, 0, 0])
     time.sleep(0.1)
-
     robot.moveRel([0, 0, 0, 0, -10])
     CurCoord = robot.getCurrentPosition()
     robot.moveToSpd(pt=[float(arenaX), CurCoord[1], 10, 0, CurCoord[4]], spd=3000)

@@ -3,8 +3,8 @@
 ## See the LICENSE file for more details.
 ##
 #
-#  File: SocialArena.py
-#  Description: Contains and functions used to access social arena array.
+#  File: YeastArena.py
+#  Description: Function container to access yeast arena coordinates for each of MAPLE's end effectors.
 
 
 ## Dependencies

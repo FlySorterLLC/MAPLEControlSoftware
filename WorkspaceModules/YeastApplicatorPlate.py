@@ -3,7 +3,7 @@
 ## See the LICENSE file for more details.
 ##
 
-## Yeast applicator plate (100) workspace file.
+## Yeast applicator module workspace file.
 
 import numpy as np
 

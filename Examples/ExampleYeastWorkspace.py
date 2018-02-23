@@ -3,7 +3,7 @@
 ## See the LICENSE file for more details.
 ##
 
-## Workspace configuration file
+## Yeast workspace configuration file
 
 import numpy as np
 

@@ -1,7 +1,8 @@
 ##
 #
 #  File: Example_PhysarumMonitoring.py
-#  Description:
+#  Description: Repeatedly captures images of slime mold plates arranged in a 3 by 3 configuration for high-throughput time lapse movies and offline analysis.
+#  Inter-image interval and total duration are variable.
 
 ## Dependencies
 import cv2

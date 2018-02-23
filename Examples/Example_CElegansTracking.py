@@ -1,7 +1,8 @@
 ##
 #
 #  File: Example_CElegansTracking.py
-#  Description:
+#  Description: Repeatedly captures x images of a single arena ID per y seconds, and saves them as .png for offline tracking.
+#  				Additionally computes difference images to aid in tracking.
 
 ## Dependencies
 import cv2
